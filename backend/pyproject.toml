@@ -1,0 +1,57 @@
+[project]
+name = "afterpass"
+version = "0.1.0"
+description = "Finds stubble-fire burn scars missing from official satellite counts, and forecasts where the smoke goes."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "dask>=2026.8.0",
+    "geopandas>=1.2.0",
+    "h3>=4.5.0",
+    "httpx>=0.28.1",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "odc-stac>=0.5.3",
+    "pandas>=3.0.6",
+    "pydantic-settings>=2.15.0",
+    "pyproj>=3.8.0",
+    "pystac-client>=0.9.0",
+    "python-dotenv>=1.2.4",
+    "rasterio>=1.5.2",
+    "rioxarray>=0.23.0",
+    "scikit-image>=0.26.0",
+    "scipy>=1.18.1",
+    "shapely>=2.2.0",
+    "typer>=0.27.3",
+    "xarray>=2026.9.0",
+]
+
+[project.scripts]
+afterpass = "afterpass.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["afterpass"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]

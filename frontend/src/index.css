@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #05070d;
+  --color-panel: rgba(14, 18, 30, 0.62);
+  --color-hairline: rgba(255, 255, 255, 0.08);
+  --color-ember: #ff6b2c;
+  --color-ember-2: #ffb547;
+  --color-ember-core: #ffe3a3;
+  --color-official: #3dd6f5;
+  --color-smoke: #9aa4b8;
+  --color-text: #e8ecf5;
+  --color-text-2: #8a93a8;
+  --color-success: #34d399;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: Inter, system-ui, sans-serif;
+}
