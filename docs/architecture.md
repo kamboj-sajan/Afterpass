@@ -57,8 +57,9 @@ live season. Every step is a Lambda function from the same container image
 
 - **Two kinds of run.** The evening run (19:12 IST, after FIRMS has processed the afternoon
   pass) does everything. The morning run (07:12 IST) only refreshes the smoke forecast.
-- **The schedules are created switched off.** `make schedule-on` starts them; `make
-  pipeline-run` starts one run by hand.
+- **A fresh deploy creates the schedules switched off**, so deploying costs nothing until you
+  choose. `make schedule-on` starts them (they have been on for this deployment since 12
+  October 2026); `make pipeline-run` starts one run by hand.
 - **Retries and failures.** Most steps retry two or three times. If a step still fails, the
   run emails the failure topic and a CloudWatch alarm fires.
 - **Resumable.** Lambda's only writable disk is `/tmp`, so each step pulls what it needs from

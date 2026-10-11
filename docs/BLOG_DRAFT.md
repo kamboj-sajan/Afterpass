@@ -86,6 +86,11 @@ detections as cyan points, smoke as animated trails, and a react-globe.gl hero.
   quota. The data still streams from `us-west-2`, and the assistant runs on
   `openai.gpt-oss-120b` through Bedrock's OpenAI-compatible endpoint. Switching to Claude is a
   one-line setting once quota exists.
+- **Getting the pipeline's image into AWS.** Pushing the container image to ECR from a home
+  connection kept failing, so the build moved into CodeBuild, where it takes about a minute.
+  The first run then stopped at once: the Lambda Python base image has no `libexpat`, which
+  the raster library loads. The image build now imports every pipeline module, so a missing
+  library fails the build and not a run.
 - **Grounding an open model.** Every answer is checked mechanically: each number in it must
   appear in that turn's tool results. All 10 scripted questions, five in Hindi, passed.
 - **Reading COGs reliably.** Long runs of HTTP range reads occasionally came back truncated.

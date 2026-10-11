@@ -111,7 +111,7 @@ each step, the published files and the limits of the account.
 | Web app on Amplify, data on S3 and CloudFront | Live |
 | Assistant on Lambda | Live; 10 of 10 scripted questions grounded ([transcript](backend/agent/tests/transcript.md)) |
 | 2025 replay and the 2026 season so far | Published |
-| Daily pipeline on Step Functions | Deployed; a full run on 12 Oct 2026 finished in 5 min 51 s and published the 2026 season so far. The two daily schedules are created switched off (`make schedule-on`) |
+| Daily pipeline on Step Functions | Scheduled daily from 12 Oct 2026: a full run at 19:12 IST and a smoke refresh at 07:12 IST. The first full run took 5 min 51 s and published the 2026 season so far. A fresh deploy creates the schedules switched off (`make schedule-on`) |
 | Alerts and "Notify me" | Deployed; an email goes out when a Delhi zone's forecast reaches High, which has not happened yet this season |
 
 ## Run it locally
