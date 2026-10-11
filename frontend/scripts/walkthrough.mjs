@@ -24,9 +24,18 @@ const size = { width: 1600, height: 900 }
 const integer = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
 const percent = new Intl.NumberFormat('en-IN', { style: 'percent', maximumFractionDigits: 0 })
 
-async function expectedSeasonKpis() {
+/**
+ * The finished season the app opens on and the walkthrough checks. `latest.json` describes the
+ * newest season at the top, which is the live one once the pipeline has run.
+ */
+async function replaySeason() {
   const latest = await (await fetch(`${dataUrl}/latest.json`)).json()
-  const summary = await (await fetch(`${dataUrl}/seasons/${latest.season}/summary.json`)).json()
+  const replays = Object.values(latest.seasons ?? {}).filter((entry) => entry.mode === 'replay')
+  return replays.length > 0 ? Math.max(...replays.map((entry) => entry.season)) : latest.season
+}
+
+async function expectedSeasonKpis() {
+  const summary = await (await fetch(`${dataUrl}/seasons/${await replaySeason()}/summary.json`)).json()
   const burned = summary.districts.reduce((total, d) => total + d.burned_ha, 0)
   const unrecorded = summary.districts.reduce((total, d) => total + d.unrecorded_ha, 0)
   const official = summary.districts.reduce((total, d) => total + d.firms.firms_count, 0)
@@ -179,7 +188,7 @@ if (!agentUp) {
   await page.getByRole('button', { name: /^संगरूर के किन गाँवों/ }).click()
   await page.getByTestId('chat-answer').waitFor({ timeout: 90_000 })
   await pause(4000)
-  const season = (await (await fetch(`${dataUrl}/latest.json`)).json()).season
+  const season = await replaySeason()
   const villages = (await (await fetch(`${dataUrl}/seasons/${season}/villages.json`)).json()).items
   const top = villages
     .filter((village) => village.district === 'Sangrur')
@@ -231,7 +240,7 @@ await page.goto(`${appUrl}/method`)
 await page.getByTestId('method-pm25').waitFor({ timeout: 60_000 })
 await pause(1500)
 {
-  const season = (await (await fetch(`${dataUrl}/latest.json`)).json()).season
+  const season = await replaySeason()
   const summary = await (await fetch(`${dataUrl}/seasons/${season}/summary.json`)).json()
   const validation = await (await fetch(`${dataUrl}/validation/${season}.json`)).json()
   const hours = summary.firms.by_ist_hour
