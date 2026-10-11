@@ -81,7 +81,7 @@ def test_public_files_follow_the_contract(replay, tmp_path, monkeypatch) -> None
     root = tmp_path / "public"
     names = sorted(str(p.relative_to(root)) for p in paths)
     assert names == [
-        "imagery/index.json",
+        "imagery/2025/index.json",
         "latest.json",
         "seasons/2025/burns_h3_r8.json",
         "seasons/2025/districts.geojson",
@@ -176,7 +176,7 @@ def test_imagery_index_lists_villages_with_crops(tmp_path, monkeypatch) -> None:
     root = tmp_path / "public"
     monkeypatch.setattr(publish, "PUBLIC_DIR", root)
     meta = {"generated_at": "2026-10-11T00:00:00+00:00", "source_versions": {}, "demo": False}
-    assert json.loads(publish.write_imagery_index(meta).read_text())["items"] == []
+    assert json.loads(publish.write_imagery_index(meta, 2026).read_text())["items"] == []
 
     record = {
         "village_id": "aaaa1111-alpha",
@@ -186,11 +186,15 @@ def test_imagery_index_lists_villages_with_crops(tmp_path, monkeypatch) -> None:
         "post_date": "2025-11-02",
         "bounds": [75.9, 30.1, 75.92, 30.12],
     }
-    (root / "imagery" / "aaaa1111-alpha").mkdir(parents=True)
-    (root / "imagery" / "aaaa1111-alpha" / "meta.json").write_text(json.dumps(record))
-    index = json.loads(publish.write_imagery_index(meta).read_text())
+    (root / "imagery" / "2025" / "aaaa1111-alpha").mkdir(parents=True)
+    (root / "imagery" / "2025" / "aaaa1111-alpha" / "meta.json").write_text(json.dumps(record))
+    index_path = publish.write_imagery_index(meta, 2025)
+    assert index_path == root / "imagery" / "2025" / "index.json"
+    index = json.loads(index_path.read_text())
     assert index["demo"] is False
     assert index["items"] == [{k: v for k, v in record.items() if k != "bounds"}]
+    # Each season lists only its own crops.
+    assert json.loads(publish.write_imagery_index(meta, 2026).read_text())["items"] == []
 
 
 def test_latest_lists_every_season_with_the_newest_on_top(tmp_path, monkeypatch) -> None:

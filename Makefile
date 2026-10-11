@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web pipeline-run schedule-on schedule-off destroy seed-cache
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery imagery-migrate qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web pipeline-run schedule-on schedule-off destroy seed-cache
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -45,8 +45,11 @@ fetch: ## Download and cache the 2025 season's imagery and FIRMS data
 replay: ## Process the 2025 replay for the demo districts
 	$(UV) afterpass replay --season 2025 --districts Sangrur,Bathinda,Firozpur
 
-imagery: ## Render before/after crops for the top 20 villages
-	$(UV) afterpass imagery --top 20 --season 2025
+imagery: ## Render before/after crops for the top 20 villages (SEASON=2026 for the live season)
+	$(UV) afterpass imagery --top 20 --season $(or $(SEASON),2025)
+
+imagery-migrate: ## One-off: move crops from imagery/{village}/ to imagery/2025/{village}/
+	$(UV) afterpass imagery-migrate --season 2025
 
 qa: ## Build the visual QA sheet (reports/qa_sheet.html)
 	$(UV) afterpass validate --season 2025

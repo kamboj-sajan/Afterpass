@@ -427,7 +427,7 @@ def agent_test() -> None:
 
 
 def _load_season(season: int, districts: str):
-    """Cached replays plus the scenes and STAC items behind them, for imagery and QA."""
+    """Cached replays plus the scenes and STAC items behind them, for the QA sheet."""
     from afterpass import pipeline
 
     first, last = season_window(season)
@@ -441,31 +441,61 @@ def _load_season(season: int, districts: str):
 
 
 @app.command()
-def imagery(top: int = 20, season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
+def imagery(top: int = 0, season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
     """Render before/after crops for the villages with the most unrecorded burning."""
     from afterpass import imagery as crops
-    from afterpass import places
+    from afterpass import pipeline, places
     from afterpass import publish as publisher
 
-    replays, days, scenes = _load_season(season, districts)
+    replays = [pipeline.load_replay(name.strip(), season) for name in districts.split(",")]
     _, release = places.load_localities()
-    chosen = crops.pick_crops(replays, top)
-    by_day = {slug: {scene.day: scene for scene in items} for slug, items in scenes.items()}
     meta = publisher.metadata(replays, release)
-    records = crops.render_all(chosen, days, by_day, meta)
-    # Crops from an earlier run for villages no longer in the top list would show stale numbers.
-    keep = {record["village_id"] for record in records}
-    for folder in (PUBLIC_DIR / "imagery").iterdir():
-        if folder.is_dir() and folder.name not in keep:
-            shutil.rmtree(folder)
-    publisher.write_imagery_index(meta)
-    crops.contact_sheet(records[:5], REPORTS_DIR / "imagery_pairs.png")
+    records = crops.render_season(season, replays, top or crops.TOP_VILLAGES, meta, log=typer.echo)
+    publisher.write_imagery_index(meta, season)
+    if records:
+        crops.contact_sheet(records[:5], REPORTS_DIR / f"imagery_pairs_{season}.png")
     for record in records:
         typer.echo(
             f"{record['name']:<24} {record['district']:<10} {record['pre_date']} -> "
             f"{record['post_date']}  {record['village_unrecorded_ha']:>8,.0f} ha unrecorded"
         )
-    typer.echo(f"Wrote {len(records)} villages to {PUBLIC_DIR / 'imagery'}")
+    typer.echo(f"Wrote {len(records)} villages to {crops.season_dir(season)}")
+
+
+@app.command("imagery-migrate")
+def imagery_migrate(season: int = 2025) -> None:
+    """Move crops from the old imagery/{village}/ layout to imagery/{season}/{village}/.
+
+    For crops rendered before imagery was stored per season. Upload afterwards with
+    `afterpass publish --target s3`.
+    """
+    from afterpass import imagery as crops
+    from afterpass import publish as publisher
+
+    root = PUBLIC_DIR / "imagery"
+    target = crops.season_dir(season)
+    moved = 0
+    for folder in sorted(root.iterdir()) if root.exists() else []:
+        meta_path = folder / "meta.json"
+        if not folder.is_dir() or not meta_path.exists():
+            continue  # a season folder, or not a crop
+        record = json.loads(meta_path.read_text())
+        record["season"] = season
+        meta_path.write_text(json.dumps(record, indent=2) + "\n")
+        target.mkdir(parents=True, exist_ok=True)
+        if (target / folder.name).exists():
+            shutil.rmtree(target / folder.name)
+        shutil.move(str(folder), target / folder.name)
+        moved += 1
+    if moved == 0:
+        typer.echo(f"Nothing to move: no crops directly under {root}.")
+        return
+    old_index = root / "index.json"
+    meta = json.loads(old_index.read_text()) if old_index.exists() else {}
+    meta = {key: meta[key] for key in ("generated_at", "source_versions", "demo") if key in meta}
+    publisher.write_imagery_index(meta or {"demo": False}, season)
+    old_index.unlink(missing_ok=True)
+    typer.echo(f"Moved {moved} villages to {target} and wrote its index.json")
 
 
 @app.command()

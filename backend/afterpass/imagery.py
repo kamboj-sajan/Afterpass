@@ -1,8 +1,14 @@
-"""Before/after imagery crops for the villages with the most unrecorded burning (brief §9.3)."""
+"""Before/after imagery crops for the villages with the most unrecorded burning (brief §9.3).
+
+Crops are stored per season, `imagery/{season}/{village_id}/`, so a village's live-season crops
+never replace its replay crops. Each season has its own `imagery/{season}/index.json`.
+"""
 
 from __future__ import annotations
 
 import json
+import shutil
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
@@ -18,11 +24,13 @@ from pyproj import Transformer
 from rasterio.windows import from_bounds
 
 from afterpass import aggregate, sentinel
-from afterpass.config import PUBLIC_DIR
-from afterpass.pipeline import Replay
+from afterpass.config import PUBLIC_DIR, season_window
+from afterpass.pipeline import S2_LEAD, Replay
 
 plt.switch_backend("Agg")
 
+# Crops are rendered for this many villages, ranked by area not in official counts.
+TOP_VILLAGES = 20
 CROP_M = 1500
 CROP_PX = 512
 TRUE_COLOUR_RES_M = 10
@@ -31,6 +39,11 @@ TRUE_COLOUR_RES_M = 10
 SWIR_STRETCH = (0.45, 0.45, 0.30)
 RENDER_THREADS = 6
 INK = "#0B0F14"
+
+
+def season_dir(season: int) -> Path:
+    """Where a season's crops live: one folder per village, plus index.json."""
+    return PUBLIC_DIR / "imagery" / str(season)
 
 
 @dataclass(frozen=True)
@@ -130,9 +143,10 @@ def render(
     days: dict[date, list[pystac.Item]],
     scenes: dict[date, sentinel.Scene],
     meta: dict,
+    season: int,
 ) -> dict:
     """Write the four WebP crops and meta.json for one village. Returns the metadata."""
-    folder = PUBLIC_DIR / "imagery" / crop.village_id
+    folder = season_dir(season) / crop.village_id
     folder.mkdir(parents=True, exist_ok=True)
     for label, day in (("pre", crop.pre), ("post", crop.post)):
         true_colour(crop, day, days[day]).save(folder / f"{label}_tc.webp", "WEBP", quality=85)
@@ -142,6 +156,7 @@ def render(
     to_lonlat = Transformer.from_crs(crop.crs, "EPSG:4326", always_xy=True)
     west, south, east, north = to_lonlat.transform_bounds(*crop.bounds)
     record = {
+        "season": season,
         "village_id": crop.village_id,
         "name": crop.name,
         "district": crop.district,
@@ -169,10 +184,62 @@ def render_all(
     days: dict[str, dict[date, list[pystac.Item]]],
     scenes: dict[str, dict[date, sentinel.Scene]],
     meta: dict,
+    season: int,
 ) -> list[dict]:
     """Render every crop, a few at a time (the reads are network-bound)."""
     with ThreadPoolExecutor(RENDER_THREADS) as pool:
-        return list(pool.map(lambda c: render(c, days[c.slug], scenes[c.slug], meta), crops))
+        return list(
+            pool.map(lambda c: render(c, days[c.slug], scenes[c.slug], meta, season), crops)
+        )
+
+
+def needed_scenes(crops: list[Crop]) -> dict[str, set[date]]:
+    """The Sentinel-2 dates each district's crops are drawn from: their before and after."""
+    needed: dict[str, set[date]] = {}
+    for crop in crops:
+        needed.setdefault(crop.slug, set()).update((crop.pre, crop.post))
+    return needed
+
+
+def render_season(
+    season: int,
+    replays: list[Replay],
+    top: int,
+    meta: dict,
+    log: Callable[[str], None] = lambda _: None,
+) -> list[dict]:
+    """Crops for the season's `top` villages, written to imagery/{season}/.
+
+    Only the scenes the crops are drawn from are loaded. Each comes from the local scene cache
+    when it is there (the pipeline pulls those files first) and is downloaded otherwise.
+    Villages that dropped out of the top list lose their folders, so no crop shows stale
+    numbers.
+    """
+    crops = pick_crops(replays, top)
+    first, last = season_window(season)
+    days: dict[str, dict[date, list[pystac.Item]]] = {}
+    scenes: dict[str, dict[date, sentinel.Scene]] = {}
+    for replay in replays:
+        place = replay.district
+        wanted = needed_scenes(crops).get(place.slug, set())
+        if not wanted:
+            continue
+        # The same search as the replay's, so its cached STAC results are reused.
+        found = sentinel.search(place.geometry, first - S2_LEAD, last)
+        days[place.slug] = found
+        scenes[place.slug] = {
+            day: sentinel.cache_scene(place.slug, day, found[day], place.geobox, place.geometry)
+            for day in sorted(wanted)
+        }
+        log(f"{place.name}: {len(wanted)} Sentinel-2 dates for its crops")
+    records = render_all(crops, days, scenes, meta, season)
+    keep = {record["village_id"] for record in records}
+    folder = season_dir(season)
+    if folder.exists():
+        for child in folder.iterdir():
+            if child.is_dir() and child.name not in keep:
+                shutil.rmtree(child)
+    return records
 
 
 def contact_sheet(records: list[dict], path: Path) -> None:
@@ -187,7 +254,7 @@ def contact_sheet(records: list[dict], path: Path) -> None:
         len(records), 4, figsize=(14, 3.7 * len(records)), facecolor=INK, squeeze=False
     )
     for row, record in zip(axes, records, strict=True):
-        folder = PUBLIC_DIR / "imagery" / record["village_id"]
+        folder = season_dir(record["season"]) / record["village_id"]
         for ax, (key, label) in zip(row, columns, strict=True):
             ax.imshow(Image.open(folder / record["files"][key]))
             day = record["pre_date"] if key.startswith("pre") else record["post_date"]

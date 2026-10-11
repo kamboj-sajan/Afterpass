@@ -4,7 +4,7 @@ Every file carries `generated_at`, `source_versions` and `"demo": false`. Files 
 as arrays are wrapped as `{..., "items": [...]}` so they can hold that metadata; GeoJSON files
 carry it as top-level members next to `features`. Scars are split into one file per district
 and ISO week (`scars/{district}/{week}.geojson`) instead of the brief's one file per district.
-`imagery/index.json` lists the villages that have crops.
+`imagery/{season}/index.json` lists the villages that have crops in that season.
 """
 
 from __future__ import annotations
@@ -110,9 +110,9 @@ def latest_with(entry: dict, meta: dict) -> dict:
 IMAGERY_INDEX_KEYS = ("village_id", "name", "district", "pre_date", "post_date")
 
 
-def write_imagery_index(meta: dict) -> Path:
-    """List the villages that have before/after crops, so the app need not probe for them."""
-    folder = PUBLIC_DIR / "imagery"
+def write_imagery_index(meta: dict, season: int) -> Path:
+    """List the season's villages with before/after crops, so the app need not probe for them."""
+    folder = PUBLIC_DIR / "imagery" / str(season)
     records = [json.loads(path.read_text()) for path in sorted(folder.glob("*/meta.json"))]
     items = [{key: record[key] for key in IMAGERY_INDEX_KEYS} for record in records]
     return _write(folder / "index.json", {**meta, "items": items})
@@ -223,7 +223,7 @@ def publish_local(replays: list[Replay], season: int, overture_release: str) -> 
                 _write(scars_dir / replay.district.slug / f"{week}.geojson", collection | meta)
             )
 
-    written.append(write_imagery_index(meta))
+    written.append(write_imagery_index(meta, season))
 
     written.extend(publish_validation(season, meta))
     return written
