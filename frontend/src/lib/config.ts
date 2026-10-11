@@ -4,7 +4,7 @@ export const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL ?? 'http://127.
 /** The agent's endpoint: its Lambda Function URL when deployed, the local server otherwise. */
 export const AGENT_URL = (import.meta.env.VITE_AGENT_URL ?? 'http://127.0.0.1:8788').replace(/\/$/, '')
 const LOCATION_KEY = import.meta.env.VITE_LOCATION_KEY ?? ''
-const AWS_REGION = import.meta.env.VITE_AWS_REGION ?? 'us-west-2'
+const AWS_REGION = import.meta.env.VITE_AWS_REGION ?? 'ap-southeast-2'
 
 /** The camera stays inside Punjab, Haryana and Delhi with a small margin: west, south, east, north. */
 export const REGION_BOUNDS: [number, number, number, number] = [72.6, 26.9, 78.9, 33.4]

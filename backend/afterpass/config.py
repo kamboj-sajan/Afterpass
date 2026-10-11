@@ -41,6 +41,7 @@ GDAL_ENV: dict[str, str] = {
     "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
     "VSI_CACHE": "TRUE",
     "AWS_NO_SIGN_REQUEST": "YES",
+    # The region of the open-data buckets being read, not of AfterPass's own resources.
     "AWS_REGION": "us-west-2",
     "GDAL_HTTP_MAX_RETRY": "5",
     "GDAL_HTTP_RETRY_DELAY": "2",
@@ -63,7 +64,8 @@ class Settings(BaseSettings):
     firms_map_key: SecretStr | None = None
     openaq_api_key: SecretStr | None = None
     bedrock_model_id: str | None = None
-    aws_region: str = "us-west-2"
+    # Where AfterPass's own resources live. The account is locked to Sydney.
+    aws_region: str = "ap-southeast-2"
 
     def require_firms_key(self) -> str:
         if self.firms_map_key is None or not self.firms_map_key.get_secret_value():

@@ -110,6 +110,9 @@ def _totals(row: dict) -> dict:
     return {
         "burned_ha": row["burned_ha"],
         "in_official_counts_ha": row["recorded_ha"],
+        "in_official_counts_pct": _pct(row["recorded_ha"] / row["burned_ha"])
+        if row["burned_ha"]
+        else None,
         "not_in_official_counts_ha": row["unrecorded_ha"],
         "not_in_official_counts_pct": _pct(row["unrecorded_share"]),
         "burn_scars": row["scar_count"],

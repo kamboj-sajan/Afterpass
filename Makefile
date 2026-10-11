@@ -76,6 +76,6 @@ build: ## Build the frontend
 	cd frontend && npm run build
 
 deploy: ## Deploy the AWS stack (asks first; costs money)
-	@echo "This creates AWS resources in us-west-2 and can cost money."
+	@echo "This creates AWS resources in ap-southeast-2 and can cost money."
 	@read -p "Type 'deploy' to continue: " ans && [ "$$ans" = "deploy" ] || (echo "Aborted."; exit 1)
 	@echo "Not implemented yet (Phase 6)."

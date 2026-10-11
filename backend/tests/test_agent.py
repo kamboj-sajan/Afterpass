@@ -226,6 +226,7 @@ def test_season_overview_for_everything_and_for_one_district(public) -> None:
     everything = tools.season_overview(2025)
     assert everything["data"]["burned_ha"] == 300.0
     assert everything["data"]["not_in_official_counts_pct"] == 60.0
+    assert everything["data"]["in_official_counts_pct"] == 40.0
     assert "Not all of Punjab" in everything["data"]["scope"]
     assert everything["data"]["data_window"]["data_through"] == "2025-11-29"
 

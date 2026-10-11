@@ -30,7 +30,7 @@ def model_name() -> str:
 def build_model():
     """The Strands model for the configured provider."""
     provider, _, model_id = model_name().partition(":")
-    region = os.environ.get("AWS_REGION", "us-west-2")
+    region = os.environ.get("AWS_REGION", "ap-southeast-2")
     if not model_id:
         raise RuntimeError("AGENT_MODEL names no model, and BEDROCK_MODEL_ID is not set.")
     if provider == "mantle":
