@@ -18,7 +18,8 @@ const MOBILE_TRAILS = 5000
 
 /**
  * Trails with times relative to the run start and a colour per vertex: amber when fresh, grey as
- * the smoke ages, and fainter as its weight decays (exp(-age / tau)).
+ * the smoke ages, and fainter as its weight decays (exp(-age / tau)). Alphas are low because
+ * thousands of trails add up: dense smoke should glow, not turn white.
  */
 export function prepareSmoke(file: TripsFile, mobile: boolean): SmokeTrail[] {
   const stride = mobile ? Math.max(1, Math.ceil(file.items.length / MOBILE_TRAILS)) : 1
@@ -32,7 +33,7 @@ export function prepareSmoke(file: TripsFile, mobile: boolean): SmokeTrail[] {
       times: trip.ts.map((t) => t - file.start),
       colors: trip.ts.map((t) => {
         const age = trip.age0 + (t - first)
-        return withAlpha(smokeColor(age / 3600), 0.18 + 0.5 * Math.exp(-age / tau))
+        return withAlpha(smokeColor(age / 3600), 0.05 + 0.25 * Math.exp(-age / tau))
       }),
     })
   }
@@ -52,8 +53,7 @@ export function smokeLayer(options: { data: SmokeTrail[]; runStart: number; cloc
     getWidth: 2,
     widthMinPixels: 2,
     widthMaxPixels: 3,
-    capRounded: true,
-    jointRounded: true,
+    // Square caps and joints: rounded ones add triangles to every segment of every trail.
     fadeTrail: true,
     trailLength: TRAIL_HOURS * 3600,
     currentTime: clockMs / 1000 - runStart,

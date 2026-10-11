@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Banners } from '@/components/Banners'
 import { CommandPalette } from '@/components/CommandPalette'
 import { DelhiOutlook } from '@/components/DelhiOutlook'
+import { FpsMeter, showFps } from '@/components/FpsMeter'
 import { GroundTruthPanel } from '@/components/GroundTruthPanel'
 import { ImageryDrawer } from '@/components/ImageryDrawer'
 import { MapView } from '@/components/MapView'
@@ -127,7 +128,8 @@ export function Explorer() {
               <ImageryDrawer data={data} />
             </div>
             {smoke.run !== null && smokeOn && (
-              <div className="pointer-events-auto">
+              // Clear of the map's zoom and compass buttons, which sit in this corner.
+              <div className="pointer-events-auto mr-11">
                 {outlookOpen ? (
                   <DelhiOutlook run={smoke.run} onClose={() => setOutlookOpen(false)} />
                 ) : (
@@ -152,6 +154,7 @@ export function Explorer() {
         </div>
       </div>
       <CommandPalette data={data} localities={smoke.run?.localities ?? []} />
+      {showFps && <FpsMeter />}
     </div>
   )
 }

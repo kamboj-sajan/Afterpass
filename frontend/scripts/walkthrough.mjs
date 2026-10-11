@@ -2,7 +2,8 @@
  * Scripted walkthrough of the Explorer in a headless browser.
  *
  * Records a video and screenshots into ../reports/, fails on any console error, and checks
- * that the season KPIs on screen equal the totals in summary.json (formatted en-IN).
+ * that the season KPIs on screen equal the totals in summary.json (formatted en-IN). Software
+ * WebGL here is far slower than a GPU: check the smoke frame rate in a browser with /map?fps=1.
  *
  * Needs both local servers: `make serve-data` and `make web`.
  * Usage: node scripts/walkthrough.mjs [appUrl] [dataUrl]
@@ -84,7 +85,7 @@ await shot('2_village_scars')
 // Search with the command palette.
 await page.keyboard.press('Escape')
 await page.keyboard.press('Control+k')
-await page.getByPlaceholder('Search districts and villages…').fill('sangrur')
+await page.getByPlaceholder('Search districts, villages and Delhi localities…').fill('sangrur')
 await pause(900)
 await shot('3_search')
 await page.keyboard.press('Enter')
@@ -97,6 +98,25 @@ await page.getByTestId('clock').filter({ hasText: '13:30' }).waitFor({ timeout: 
 await pause(700)
 await shot('4_timeline_scan')
 await pause(7000)
+
+// Smoke: trails on the clock, Delhi columns, and a locality's 48-hour outlook found in Hindi.
+const outlook = page.getByTestId('delhi-outlook')
+if ((await outlook.count()) === 0) {
+  problems.push('The Delhi smoke outlook is not shown. Has `make smoke` run?')
+} else {
+  await page.getByRole('radio', { name: '16×' }).click()
+  await pause(6000)
+  await shot('5_smoke')
+  await page.getByRole('button', { name: 'Pause' }).click()
+  await page.getByRole('textbox', { name: /Delhi locality/ }).fill('द्वार')
+  const match = page.getByRole('listbox').getByRole('button').first()
+  if ((await match.count()) > 0) await match.click()
+  await pause(4000)
+  const place = await page.getByTestId('smoke-locality').innerText()
+  const peak = await page.getByTestId('smoke-peak').innerText()
+  console.log(`Delhi outlook: ${place} | ${peak}`)
+  await shot('6_delhi_outlook')
+}
 
 await context.close()
 const video = await page.video().path()

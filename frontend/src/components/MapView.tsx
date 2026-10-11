@@ -185,7 +185,7 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
     districtParts.outlines,
     burnsLayer({ data: cells, rise, opacity: columnOpacity(zoom), visible: layers.burns }),
     ...scarLayers({ collections: scars, clockMs, weekStart, visible: scarsOn }),
-    delhiLayer({ data: delhiCells, visible: layers.delhi && smoke !== null, animate: !reduced }),
+    delhiLayer({ data: delhiCells, visible: layers.delhi && smoke !== null }),
     smokeLayer({
       data: trails,
       runStart: smoke?.trips.start ?? 0,
