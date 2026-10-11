@@ -1,11 +1,14 @@
-"""District boundaries from geoBoundaries (gbOpen, IND). Villages and localities come in Phase 2."""
+"""District boundaries (geoBoundaries gbOpen, IND) and villages (Overture Maps divisions)."""
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 
+import duckdb
 import geopandas as gpd
 import httpx
+import pandas as pd
 from shapely.geometry.base import BaseGeometry
 
 from afterpass.cache import cache_path, download
@@ -63,3 +66,85 @@ def district_geometry(name: str) -> BaseGeometry:
     if len(match) != 1:
         raise ValueError(f"Expected exactly one district named {name!r}, found {len(match)}.")
     return match.geometry.iloc[0]
+
+
+OVERTURE_CATALOG = "https://stac.overturemaps.org/catalog.json"
+OVERTURE_DIVISIONS = "s3://overturemaps-us-west-2/release/{release}/theme=divisions/type=division/*"
+LOCALITY_SUBTYPES = ("locality", "neighborhood", "macrohood")
+VILLAGE_RADIUS_M = 3000.0
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def load_localities() -> tuple[gpd.GeoDataFrame, str]:
+    """Villages and urban localities in the region from Overture Maps divisions.
+
+    Returns points (EPSG:4326) with `locality_id` and `name`, and the Overture release they
+    came from. The newest cached release is reused; delete the cache file to refresh.
+    """
+    cached = sorted(cache_path("overture", "x").parent.glob("localities_*.csv"))
+    if cached:
+        dest = cached[-1]
+    else:
+        release = httpx.get(OVERTURE_CATALOG, timeout=60).raise_for_status().json()["latest"]
+        dest = cache_path("overture", f"localities_{release}.csv")
+        w, s, e, n = REGION_BBOX
+        subtypes = ", ".join(f"'{t}'" for t in LOCALITY_SUBTYPES)
+        tmp = dest.with_name(dest.name + ".part")
+        con = duckdb.connect()
+        con.execute("INSTALL httpfs; LOAD httpfs; INSTALL spatial; LOAD spatial;")
+        con.execute("SET s3_region = 'us-west-2';")
+        con.execute(
+            f"""
+            COPY (
+                SELECT id, names.primary AS name, subtype, region,
+                       ST_X(geometry) AS lon, ST_Y(geometry) AS lat
+                FROM read_parquet('{OVERTURE_DIVISIONS.format(release=release)}',
+                                  hive_partitioning = 1)
+                WHERE country = 'IN' AND subtype IN ({subtypes})
+                  AND names.primary IS NOT NULL
+                  AND bbox.xmin BETWEEN {w} AND {e} AND bbox.ymin BETWEEN {s} AND {n}
+                ORDER BY id
+            ) TO '{tmp}' (FORMAT CSV, HEADER)
+            """
+        )
+        tmp.replace(dest)
+    # Names are text; without this, a village called "Nan" or "NA" is read as a missing value.
+    table = pd.read_csv(dest, keep_default_na=False)
+    table = table[table["name"].str.strip() != ""]
+    points = gpd.GeoDataFrame(
+        {
+            "locality_id": table["id"].str[:8] + "-" + table["name"].map(_slug),
+            "name": table["name"],
+        },
+        geometry=gpd.points_from_xy(table["lon"], table["lat"]),
+        crs="EPSG:4326",
+    )
+    return points, dest.stem.removeprefix("localities_")
+
+
+def assign_villages(scars: gpd.GeoDataFrame, localities: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Add `village_id`, `village` and `village_lon/lat` to scars (brief §9.1).
+
+    Each scar takes the locality nearest its centroid. Beyond VILLAGE_RADIUS_M the scar is
+    labelled "near <locality>" and kept apart from scars that are inside the radius. Scars
+    must be in a projected CRS (metres); localities are reprojected to it.
+    """
+    centroids = gpd.GeoDataFrame(
+        {"row": range(len(scars))}, geometry=scars.geometry.centroid.to_numpy(), crs=scars.crs
+    )
+    places_ = localities.to_crs(scars.crs)
+    lonlat = localities.to_crs("EPSG:4326").geometry
+    places_ = places_.assign(lon=lonlat.x.to_numpy(), lat=lonlat.y.to_numpy())
+    nearest = gpd.sjoin_nearest(centroids, places_, how="left", distance_col="distance_m")
+    nearest = nearest.drop_duplicates("row").sort_values("row")
+    near_only = nearest["distance_m"].to_numpy() > VILLAGE_RADIUS_M
+    ids, names = nearest["locality_id"].to_numpy(), nearest["name"].to_numpy()
+    out = scars.copy()
+    out["village_id"] = [f"near-{i}" if far else i for i, far in zip(ids, near_only, strict=True)]
+    out["village"] = [f"near {n}" if far else n for n, far in zip(names, near_only, strict=True)]
+    out["village_lon"] = nearest["lon"].to_numpy().round(5)
+    out["village_lat"] = nearest["lat"].to_numpy().round(5)
+    return out

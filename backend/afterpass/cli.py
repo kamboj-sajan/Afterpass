@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+import shutil
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import typer
 
-from afterpass.config import CACHE_DIR, REPORTS_DIR, VALIDATION_DIR
+from afterpass.config import (
+    CACHE_DIR,
+    DEMO_DISTRICTS,
+    PUBLIC_DIR,
+    REPORTS_DIR,
+    VALIDATION_DIR,
+    season_window,
+)
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -31,7 +40,11 @@ def detect(
     first, last = date.fromisoformat(start), date.fromisoformat(end)
     place = pipeline.load_district(district)
     typer.echo(f"{place.name}: grid {place.geobox.shape.x} x {place.geobox.shape.y} at 20 m")
-    days, scenes = pipeline.load_scenes(place, first, last, log=typer.echo)
+    loaded = pipeline.load_scenes(place, first, last, log=typer.echo)
+    if loaded.missing:
+        typer.echo(f"Could not download: {', '.join(map(str, loaded.missing))}", err=True)
+        raise typer.Exit(1)
+    days, scenes = loaded.days, loaded.scenes
     detections = pipeline.load_detections(place, first, last)
     mask = pipeline.detection_mask(place)
     typer.echo(f"FIRMS: {len(detections):,} detections in or within 1 km of the district")
@@ -137,9 +150,61 @@ def detect(
 
 
 @app.command()
-def replay(season: int = 2025, districts: str = "Sangrur,Bathinda,Firozpur") -> None:
-    """Process a full past season."""
-    _todo(2)
+def fetch(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
+    """Download and cache the season's Sentinel-2 scenes and FIRMS detections."""
+    from afterpass import firms, pipeline
+
+    first, last = season_window(season)
+    table = firms.fetch(first - pipeline.FIRMS_TAIL, last + pipeline.FIRMS_TAIL)
+    typer.echo(f"FIRMS: {len(table):,} detections in the region, {first} to {last}")
+    incomplete = False
+    for name in districts.split(","):
+        place = pipeline.load_district(name.strip())
+        loaded = pipeline.load_scenes(place, first, last, log=typer.echo, tail=timedelta(0))
+        typer.echo(f"{place.name}: {len(loaded.scenes)} dates cached")
+        if loaded.missing:
+            incomplete = True
+            typer.echo(f"{place.name}: MISSING {', '.join(map(str, loaded.missing))}", err=True)
+    if incomplete:
+        raise typer.Exit(1)
+    typer.echo("FETCH DONE")
+
+
+def _echo_summary(replays: list, paths: list) -> None:
+    from afterpass import aggregate
+
+    typer.echo(
+        f"{'District':<10} {'Burned ha':>11} {'Recorded':>10} {'Unrecorded':>11} "
+        f"{'Share':>6} {'Scars':>8} {'FIRMS':>7}"
+    )
+    for replay in replays:
+        row = aggregate.totals(aggregate.with_areas(replay.scars))
+        share = "-" if row["unrecorded_share"] is None else f"{row['unrecorded_share']:.0%}"
+        typer.echo(
+            f"{replay.district.name:<10} {row['burned_ha']:>11,.0f} {row['recorded_ha']:>10,.0f} "
+            f"{row['unrecorded_ha']:>11,.0f} {share:>6} {row['scar_count']:>8,} "
+            f"{len(replay.detections):>7,}"
+        )
+    for path in paths:
+        typer.echo(f"  {path.stat().st_size / 1e6:8.2f} MB  {path.relative_to(PUBLIC_DIR.parent)}")
+
+
+@app.command()
+def replay(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
+    """Process a full season: detect, match, locate, aggregate and publish locally."""
+    from afterpass import pipeline, places
+    from afterpass import publish as publisher
+
+    localities, release = places.load_localities()
+    typer.echo(f"Overture {release}: {len(localities):,} localities in the region")
+    replays = []
+    for name in districts.split(","):
+        result = pipeline.replay_district(name.strip(), season, localities, log=typer.echo)
+        if result.info["missing_dates"]:
+            missing = ", ".join(result.info["missing_dates"])
+            typer.echo(f"{result.district.name}: MISSING Sentinel-2 dates {missing}", err=True)
+        replays.append(result)
+    _echo_summary(replays, publisher.publish_local(replays, season, release))
 
 
 @app.command()
@@ -154,22 +219,99 @@ def smoke() -> None:
     _todo(4)
 
 
-@app.command()
-def imagery(top: int = 20) -> None:
-    """Render before/after crops for the top villages."""
-    _todo(2)
+def _load_season(season: int, districts: str):
+    """Cached replays plus the scenes and STAC items behind them, for imagery and QA."""
+    from afterpass import pipeline
+
+    first, last = season_window(season)
+    replays = [pipeline.load_replay(name.strip(), season) for name in districts.split(",")]
+    days, scenes = {}, {}
+    for replay in replays:
+        loaded = pipeline.load_scenes(replay.district, first, last, tail=timedelta(0))
+        days[replay.district.slug] = loaded.days
+        scenes[replay.district.slug] = loaded.scenes
+    return replays, days, scenes
 
 
 @app.command()
-def validate() -> None:
-    """Compute validation metrics."""
-    _todo(2)
+def imagery(top: int = 20, season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
+    """Render before/after crops for the villages with the most unrecorded burning."""
+    from afterpass import imagery as crops
+    from afterpass import places
+    from afterpass import publish as publisher
+
+    replays, days, scenes = _load_season(season, districts)
+    _, release = places.load_localities()
+    chosen = crops.pick_crops(replays, top)
+    by_day = {slug: {scene.day: scene for scene in items} for slug, items in scenes.items()}
+    meta = publisher.metadata(replays, release)
+    records = crops.render_all(chosen, days, by_day, meta)
+    # Crops from an earlier run for villages no longer in the top list would show stale numbers.
+    keep = {record["village_id"] for record in records}
+    for folder in (PUBLIC_DIR / "imagery").iterdir():
+        if folder.is_dir() and folder.name not in keep:
+            shutil.rmtree(folder)
+    publisher.write_imagery_index(meta)
+    crops.contact_sheet(records[:5], REPORTS_DIR / "imagery_pairs.png")
+    for record in records:
+        typer.echo(
+            f"{record['name']:<24} {record['district']:<10} {record['pre_date']} -> "
+            f"{record['post_date']}  {record['village_unrecorded_ha']:>8,.0f} ha unrecorded"
+        )
+    typer.echo(f"Wrote {len(records)} villages to {PUBLIC_DIR / 'imagery'}")
 
 
 @app.command()
-def publish(target: str = "local") -> None:
-    """Publish data-contract files to data/public or S3."""
-    _todo(2)
+def validate(
+    labels: str = typer.Option("", help="Labels exported from the QA sheet. Omit to build it."),
+    season: int = 2025,
+    districts: str = ",".join(DEMO_DISTRICTS),
+) -> None:
+    """Build the visual QA sheet, or turn its exported labels into precision."""
+    import numpy as np
+
+    from afterpass import pipeline
+    from afterpass import validate as qa
+
+    items_path = VALIDATION_DIR / f"qa_items_{season}.json"
+    report_path = VALIDATION_DIR / f"{season}.json"
+    if labels:
+        items = json.loads(items_path.read_text())["items"]
+        result = qa.score(items, json.loads(Path(labels).read_text())["labels"])
+        report = json.loads(report_path.read_text()) if report_path.exists() else {}
+        report["visual_qa"] = {
+            "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            **result,
+        }
+        report_path.write_text(json.dumps(report, indent=2) + "\n")
+        typer.echo(json.dumps(result, indent=2))
+        return
+
+    replays, days, scenes = _load_season(season, districts)
+    rng = np.random.default_rng(qa.SEED)
+    masks = {r.district.slug: pipeline.detection_mask(r.district) for r in replays}
+    items = qa.sample_scars(replays, rng, qa.QA_SCARS)
+    items += qa.sample_points(replays, masks, scenes, rng, qa.QA_POINTS)
+    # Mixed order, so position does not reveal which items are detections.
+    items = [items[i] for i in rng.permutation(len(items))]
+    qa.build_sheet(items, days, season, REPORTS_DIR / "qa_sheet.html", items_path)
+    typer.echo(f"Wrote {REPORTS_DIR / 'qa_sheet.html'} with {len(items)} items to label")
+
+
+@app.command()
+def publish(
+    target: str = "local", season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)
+) -> None:
+    """Rewrite the data-contract files in data/public from the cached replay."""
+    from afterpass import pipeline, places
+    from afterpass import publish as publisher
+
+    if target != "local":
+        typer.echo("Only --target local works so far; S3 publishing arrives with the deploy.")
+        raise typer.Exit(1)
+    _, release = places.load_localities()
+    replays = [pipeline.load_replay(name.strip(), season) for name in districts.split(",")]
+    _echo_summary(replays, publisher.publish_local(replays, season, release))
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis detect replay live serve-data web build deploy
+.PHONY: help setup lint test smoke-apis detect fetch replay imagery qa live serve-data web build deploy
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -26,8 +26,17 @@ smoke-apis: ## Check FIRMS and Earth Search respond for Sangrur
 detect: ## Detect burn scars for Sangrur, 1-15 Nov 2025, and render the quick-look
 	$(UV) afterpass detect --district Sangrur --start 2025-11-01 --end 2025-11-15
 
+fetch: ## Download and cache the 2025 season's imagery and FIRMS data
+	$(UV) afterpass fetch --season 2025 --districts Sangrur,Bathinda,Firozpur
+
 replay: ## Process the 2025 replay for the demo districts
 	$(UV) afterpass replay --season 2025 --districts Sangrur,Bathinda,Firozpur
+
+imagery: ## Render before/after crops for the top 20 villages
+	$(UV) afterpass imagery --top 20 --season 2025
+
+qa: ## Build the visual QA sheet (reports/qa_sheet.html)
+	$(UV) afterpass validate --season 2025
 
 live: ## Process the 2026 season up to today
 	$(UV) afterpass live

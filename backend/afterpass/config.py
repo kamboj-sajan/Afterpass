@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, date, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -20,6 +21,18 @@ VALIDATION_DIR = REPO_ROOT / "validation"
 REGION_BBOX: tuple[float, float, float, float] = (73.8, 27.6, 77.7, 32.6)
 DEMO_DISTRICTS: tuple[str, ...] = ("Sangrur", "Bathinda", "Firozpur")
 IST = "Asia/Kolkata"
+# Burning seasons: (first day, last day). The live season has no last day yet.
+SEASONS: dict[int, tuple[date, date | None]] = {
+    2025: (date(2025, 10, 1), date(2025, 11, 30)),
+    2026: (date(2026, 10, 1), None),
+}
+
+
+def season_window(season: int) -> tuple[date, date]:
+    """First and last day of a season; an open season ends today (UTC)."""
+    first, last = SEASONS[season]
+    return first, last or datetime.now(UTC).date()
+
 
 # Fast, unsigned COG reads from AWS Open Data (brief §5.2).
 GDAL_ENV: dict[str, str] = {

@@ -360,23 +360,24 @@ def cache_scene(
     return Scene(day, acquired, path)
 
 
-def _read_visual_tile(href: str, geobox: GeoBox) -> np.ndarray:
-    """One tile's `visual` asset warped onto `geobox`, read from the coarsest overview that
-    still resolves the target pixel size (the asset is 10 m; overviews halve each level)."""
+def _warp_asset(href: str, geobox: GeoBox, count: int, dtype: str) -> np.ndarray:
+    """One tile's asset warped onto `geobox`, read from the coarsest overview that still
+    resolves the target pixel size (10 m assets; overviews halve each level)."""
     factor = float(geobox.resolution.x) / 10.0
     level = int(math.log2(factor)) - 1 if factor >= 2 else None
-    out = np.zeros((3, geobox.shape.y, geobox.shape.x), np.uint8)
+    out = np.zeros((count, geobox.shape.y, geobox.shape.x), dtype)
     for attempt in range(READ_ATTEMPTS):
+        url = href if attempt == 0 else f"{href}?attempt={attempt}"
         try:
             options = {} if level is None else {"overview_level": level}
-            with rasterio.open(href, **options) as src:
+            with rasterio.open(url, **options) as src:
                 reproject(
-                    source=rasterio.band(src, [1, 2, 3]),
+                    source=rasterio.band(src, list(range(1, count + 1))),
                     destination=out,
                     dst_transform=geobox.affine,
                     dst_crs=str(geobox.crs),
-                    src_nodata=0,
-                    dst_nodata=0,
+                    src_nodata=NODATA,
+                    dst_nodata=NODATA,
                     resampling=Resampling.bilinear,
                 )
             return out
@@ -387,40 +388,60 @@ def _read_visual_tile(href: str, geobox: GeoBox) -> np.ndarray:
     raise AssertionError("unreachable")
 
 
-def load_visual(
-    slug: str, day: date, items: list[pystac.Item], geobox: GeoBox, tag: str
+def load_asset(
+    slug: str,
+    day: date,
+    items: list[pystac.Item],
+    geobox: GeoBox,
+    tag: str,
+    asset: str = "visual",
 ) -> np.ndarray:
-    """8-bit true colour (H, W, 3) on `geobox`, cached as a GeoTIFF named by `tag`.
+    """A 10 m asset on `geobox` as (H, W, bands), cached as a GeoTIFF named by `tag`.
 
-    Black (0, 0, 0) means no data on that date.
+    `visual` gives 8-bit true colour; `red` gives raw digital numbers. Zero means no data on
+    that date.
     """
-    path = cache_path("s2_visual", slug, f"{day.isoformat()}_{tag}.tif")
+    count, dtype = (3, "uint8") if asset == "visual" else (1, "uint16")
+    path = cache_path(f"s2_{asset}", slug, f"{day.isoformat()}_{tag}.tif")
     if not path.exists():
         extent = Transformer.from_crs(str(geobox.crs), "EPSG:4326", always_xy=True)
         bounds = box(*extent.transform_bounds(*geobox.boundingbox))
         covering = [i for i in items if i.geometry and shape(i.geometry).intersects(bounds)]
-        hrefs = [item.assets["visual"].href for item in sorted(covering, key=lambda i: i.id)]
+        hrefs = [item.assets[asset].href for item in sorted(covering, key=lambda i: i.id)]
         if not hrefs:
-            return np.zeros((geobox.shape.y, geobox.shape.x, 3), np.uint8)
+            return np.zeros((geobox.shape.y, geobox.shape.x, count), dtype)
         with ThreadPoolExecutor(len(hrefs)) as pool:
-            tiles = list(pool.map(lambda href: _read_visual_tile(href, geobox), hrefs))
-        rgb = tiles[0]
+            tiles = list(pool.map(lambda href: _warp_asset(href, geobox, count, dtype), hrefs))
+        data = tiles[0]
         for tile in tiles[1:]:
-            empty = ~rgb.any(axis=0)
-            rgb[:, empty] = tile[:, empty]
+            empty = ~data.any(axis=0)
+            data[:, empty] = tile[:, empty]
         tmp = path.with_name(path.name + ".part")
         profile = {
             "driver": "GTiff",
             "height": geobox.shape.y,
             "width": geobox.shape.x,
-            "count": 3,
-            "dtype": "uint8",
+            "count": count,
+            "dtype": dtype,
             "crs": str(geobox.crs),
             "transform": geobox.affine,
             "compress": "deflate",
         }
         with rasterio.open(tmp, "w", **profile) as dst:
-            dst.write(rgb)
+            dst.write(data)
         tmp.replace(path)
     with rasterio.open(path) as src:
         return np.moveaxis(src.read(), 0, -1)
+
+
+def load_visual(
+    slug: str, day: date, items: list[pystac.Item], geobox: GeoBox, tag: str
+) -> np.ndarray:
+    """8-bit true colour (H, W, 3) on `geobox`. Black (0, 0, 0) means no data on that date."""
+    return load_asset(slug, day, items, geobox, tag, asset="visual")
+
+
+def reflectance(items: list[pystac.Item], band: str, dn: np.ndarray) -> np.ndarray:
+    """Digital numbers to 0-1 reflectance using the items' scale and offset."""
+    scale, offset = _scale_offset(items, band)
+    return dn.astype(np.float32) * np.float32(scale) + np.float32(offset)

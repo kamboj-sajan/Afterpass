@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AfterPass visual QA, season __SEASON__</title>
+<style>
+  :root { --ink: #0B0F14; --panel: #131A22; --line: #263241; --text: #E6EDF3; --muted: #94A3B8;
+          --ember: #FF6B1A; --cyan: #22D3EE; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: var(--muted); }
+  p b { color: var(--text); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+           overflow: hidden; }
+  figure img { display: block; width: 100%; aspect-ratio: 1; image-rendering: auto; }
+  figcaption { padding: 8px 12px; color: var(--muted); font-size: 14px; }
+  figcaption b { color: var(--text); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+           border-radius: 8px; padding: 10px 14px; font: inherit; cursor: pointer; }
+  button:hover, button:focus-visible { border-color: var(--cyan); outline: none; }
+  button.chosen { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember) inset; }
+  kbd { background: #1E2935; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px;
+        font: 13px ui-monospace, monospace; margin-right: 6px; }
+  .spacer { flex: 1; }
+  progress { width: 100%; height: 8px; margin-top: 16px; accent-color: var(--ember); }
+  #status { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  #done { display: none; margin-top: 16px; padding: 12px 16px; border: 1px solid var(--ember);
+          border-radius: 8px; }
+  @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>AfterPass visual QA, season __SEASON__</h1>
+  <p>Look at the <b>orange outline</b>. Was that area <b>not burned before</b> and <b>burned after</b>?
+     Each image is 600 m wide. Sentinel-2 true colour at 10 m.</p>
+  <div id="where" aria-live="polite"></div>
+  <div class="pair">
+    <figure><img id="pre" alt="Before"><figcaption>Before: <b id="preDate"></b></figcaption></figure>
+    <figure><img id="post" alt="After"><figcaption>After: <b id="postDate"></b></figcaption></figure>
+  </div>
+  <div class="row">
+    <button data-label="b"><kbd>b</kbd>Burned</button>
+    <button data-label="n"><kbd>n</kbd>Not burned</button>
+    <button data-label="u"><kbd>u</kbd>Unsure</button>
+    <span class="spacer"></span>
+    <button id="back"><kbd>&larr;</kbd>Back</button>
+    <button id="next"><kbd>&rarr;</kbd>Skip</button>
+    <button id="export"><kbd>e</kbd>Export labels</button>
+  </div>
+  <progress id="progress" value="0" max="1"></progress>
+  <div id="status"></div>
+  <div id="done">All items are labelled. Press <kbd>e</kbd> to export
+    <code>qa_labels___SEASON__.json</code>, then run
+    <code>afterpass validate --labels path/to/qa_labels___SEASON__.json</code>.</div>
+</main>
+<script>
+const SEASON = "__SEASON__";
+const ITEMS = __ITEMS__;
+const KEY = "afterpass-qa-" + SEASON;
+let labels = {};
+try { labels = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (error) { labels = {}; }
+let index = Math.max(0, ITEMS.findIndex((item) => !labels[item.id]));
+
+const formatDate = (iso) => new Date(iso + "T00:00:00+05:30").toLocaleDateString("en-IN", {
+  day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+
+function show() {
+  const item = ITEMS[index];
+  document.getElementById("pre").src = item.pre;
+  document.getElementById("post").src = item.post;
+  document.getElementById("preDate").textContent = formatDate(item.pre_date);
+  document.getElementById("postDate").textContent = formatDate(item.post_date);
+  document.getElementById("where").textContent =
+    "Item " + (index + 1) + " of " + ITEMS.length + ", " + item.district;
+  const count = ITEMS.filter((entry) => labels[entry.id]).length;
+  document.getElementById("progress").max = ITEMS.length;
+  document.getElementById("progress").value = count;
+  document.getElementById("status").textContent = count + " of " + ITEMS.length +
+    " labelled. Labels are saved in this browser as you go.";
+  document.getElementById("done").style.display = count === ITEMS.length ? "block" : "none";
+  document.querySelectorAll("button[data-label]").forEach((button) =>
+    button.classList.toggle("chosen", labels[item.id] === button.dataset.label));
+}
+
+function move(step) {
+  index = Math.min(ITEMS.length - 1, Math.max(0, index + step));
+  show();
+}
+
+function label(value) {
+  labels[ITEMS[index].id] = value;
+  localStorage.setItem(KEY, JSON.stringify(labels));
+  if (index < ITEMS.length - 1) { move(1); } else { show(); }
+}
+
+function exportLabels() {
+  const payload = { season: Number(SEASON), exported_at: new Date().toISOString(), labels };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "qa_labels_" + SEASON + ".json";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+document.querySelectorAll("button[data-label]").forEach((button) =>
+  button.addEventListener("click", () => label(button.dataset.label)));
+document.getElementById("back").addEventListener("click", () => move(-1));
+document.getElementById("next").addEventListener("click", () => move(1));
+document.getElementById("export").addEventListener("click", exportLabels);
+document.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) { return; }
+  const key = event.key.toLowerCase();
+  if (key === "b" || key === "n" || key === "u") { label(key); }
+  else if (key === "arrowleft") { move(-1); }
+  else if (key === "arrowright") { move(1); }
+  else if (key === "e") { exportLabels(); }
+});
+show();
+</script>
+</body>
+</html>

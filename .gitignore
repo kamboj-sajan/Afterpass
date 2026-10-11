@@ -26,3 +26,6 @@ frontend/dist/
 
 # AWS SAM
 .aws-sam/
+
+# Visual QA sheet (generated, embeds imagery; rebuild with `make qa`)
+reports/qa_sheet.html
