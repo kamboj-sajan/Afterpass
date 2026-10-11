@@ -133,6 +133,22 @@ def upload_public(
     return {"uploaded": sent, "unchanged": len(files) - sent, "removed": len(stale)}
 
 
+def upload_only(bucket: str, names: list[str], root: Path = PUBLIC_DIR) -> int:
+    """Publish the named files and nothing else. Returns how many were uploaded.
+
+    For a change to one part of the published data (the validation file, the method document)
+    when the rest of the bucket is newer than this folder. Nothing is removed.
+    """
+    client = boto3.client("s3", region_name=settings().aws_region)
+    sent = 0
+    for name in names:
+        path = METHOD_DOC if name == METHOD_DOC.name else root / name
+        if not path.is_file():
+            raise FileNotFoundError(f"{path} does not exist.")
+        sent += upload_file(client, bucket, path, name)
+    return sent
+
+
 def put_firms_key() -> str:
     """Copy the FIRMS key from `.env` into an SSM SecureString. The key is never printed."""
     name = "/afterpass/firms_map_key"

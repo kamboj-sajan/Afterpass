@@ -51,8 +51,10 @@ For Sangrur, Bathinda and Firozpur, 1 October to 30 November 2025:
 - **We don't know when a field was lit**, only between which two images it burned.
 - **Calibration against FIRMS is a weak check.** A VIIRS pixel is 375 m wide, so many pixels
   next to a detection never burned, and the measured recall (32%) understates what we find.
-  The real test is a visual check of 200 random samples, which is built but not yet labelled,
-  so precision is not yet known.
+  The real test is a visual check of 200 random samples, labelled by one person: 74 of the 85
+  scars that could be judged were burned (87%, 95% interval 78% to 93%), and 15 were left out
+  as unsure. Of 49 random cropland points that could be judged, 10 looked newly burned and
+  none had been flagged on that date, which is too few to give a miss rate.
 - **The smoke correlation is partly weather.** A shallow night-time mixing layer raises both
   the index and PM2.5, so the correlation shows the two move together, not how much PM2.5 the
   stubble smoke adds. The index is relative and is never shown as µg/m³.

@@ -475,5 +475,38 @@
       "Both series depend on the mixing height: a shallow layer raises the index by construction and also traps PM2.5 from every source, so part of the agreement is shared weather.",
       "The index is relative and has no units; a correlation says how the two move together, not how much PM2.5 the smoke adds."
     ]
+  },
+  "visual_qa": {
+    "generated_at": "2026-10-11T20:18:12+00:00",
+    "precision": {
+      "value": 0.871,
+      "wilson_95": [
+        0.783,
+        0.926
+      ],
+      "n": 85
+    },
+    "scars": {
+      "sampled": 100,
+      "burned": 74,
+      "not_burned": 11,
+      "unsure": 15,
+      "unlabelled": 0
+    },
+    "detected_share_of_burned_points": {
+      "value": 0.0,
+      "wilson_95": [
+        0.0,
+        0.278
+      ],
+      "n": 10
+    },
+    "points": {
+      "sampled": 100,
+      "burned": 10,
+      "not_burned": 39,
+      "unsure": 51,
+      "unlabelled": 0
+    }
   }
 }

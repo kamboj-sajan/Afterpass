@@ -196,9 +196,23 @@ export function Method() {
                           low: formatShare(qa.precision.wilson_95[0]),
                           high: formatShare(qa.precision.wilson_95[1]),
                           n: qa.precision.n,
+                          unsure: qa.scars.unsure,
                         })
                       : t('method.check.visualPending')}
                   </p>
+                  {qa && qa.detected_share_of_burned_points.value !== null && (
+                    <p className={PROSE} data-testid="method-visual-points">
+                      {t('method.check.visualPoints', {
+                        sampled: qa.points.sampled,
+                        judged: qa.points.burned + qa.points.not_burned,
+                        burned: qa.points.burned,
+                        // The file gives the share; the count it came from is share × burned points.
+                        detected: Math.round(
+                          qa.detected_share_of_burned_points.value * qa.detected_share_of_burned_points.n,
+                        ),
+                      })}
+                    </p>
+                  )}
                   <p className={NOTE}>{source(`validation/${validation.season}.json`, validation.generated_at)}</p>
                 </Section>
 

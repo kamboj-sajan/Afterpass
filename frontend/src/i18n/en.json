@@ -306,7 +306,8 @@
       "caveat2": "“Clearly unburned” is defined with the same measurements the rule tests, so that rate is optimistic.",
       "caveat3": "The thresholds come from one district and one season.",
       "visual": "Visual check",
-      "visualDone": "{{value}} of sampled scars were confirmed as burned by eye (95% interval {{low}} to {{high}}; {{n}} labelled).",
+      "visualDone": "{{value}} of sampled scars were confirmed as burned by eye (95% interval {{low}} to {{high}}; {{n}} labelled, {{unsure}} more left out as unsure). One person labelled the sample, from before and after images 600 m wide.",
+      "visualPoints": "Of {{sampled}} random cropland points, {{judged}} could be judged. {{burned}} of them looked newly burned, and {{detected}} of those {{burned}} had been flagged on that date. The sample is too small to give a miss rate; it is consistent with burned area being a lower bound.",
       "visualPending": "Not done yet. A random sample of 100 scars and 100 other points is waiting to be labelled by eye. Until then the precision of the detections is not known."
     },
     "smoke": {

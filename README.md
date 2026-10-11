@@ -36,10 +36,10 @@ comes from.
 | Finding | Value | Source |
 |---|---|---|
 | Burned area found | 423,996 ha | `seasons/2025/summary.json` |
-| Not in official counts | 303,189 ha (71%) | `seasons/2025/summary.json` |
+| Not in official counts | 303,189 ha (71.5%) | `seasons/2025/summary.json` |
 | Official detections between 12:00 and 16:00 IST | 4,330 of 4,377 (98.9%) | `seasons/2025/summary.json` |
 | Daily Delhi smoke index vs observed PM2.5, 59 days, 40 monitors | Pearson r = 0.56, Spearman ρ = 0.63 | `validation/2025.json` |
-| Visual precision check | Not done yet | `reports/qa_sheet.html` |
+| Scars confirmed as burned by eye (85 judged of 100 sampled; 15 unsure left out) | 87% (95% interval 78% to 93%) | `validation/2025.json` |
 
 The burned area is a lower bound: clouds leave gaps, fields under 0.5 ha are missed, and a
 field tilled under before the next clear image is not seen. The PM2.5 comparison shows that the
@@ -166,7 +166,9 @@ reports/             screenshots, calibration plot, quick-looks
 - Villages are the nearest named place within 3 km of a scar, not administrative boundaries.
 - The Smoke Arrival Index is relative, covers only the mapped districts, and is not a PM2.5
   forecast or health advice. For health decisions, use official AQI (CPCB's SAMEER app).
-- Precision from the visual check is not known until the QA sheet is labelled.
+- The visual check was labelled by one person. Of 49 random cropland points that could be
+  judged, 10 looked newly burned and none had been flagged on that date: too few to give a
+  miss rate, and consistent with burned area being a lower bound.
 
 ## Credits
 

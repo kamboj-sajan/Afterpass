@@ -436,6 +436,38 @@ def _sections(text: str) -> dict[str, str]:
     return sections
 
 
+def _visual_check(block: dict) -> dict:
+    """The hand-labelled sample as counts and percentages, the way an answer would state them."""
+    precision, scars = block["precision"], block["scars"]
+    out = {
+        "how": "One person labelled a random sample by eye from before and after images. "
+        "Items marked unsure are left out of the precision.",
+        "scars_sampled": scars["sampled"],
+        "scars_confirmed_burned": scars["burned"],
+        "scars_judged_not_burned": scars["not_burned"],
+        "scars_left_out_as_unsure": scars["unsure"],
+        "scars_the_precision_is_based_on": precision["n"],
+        "precision_pct": _pct(precision["value"]),
+        "precision_interval_low_high_pct": None
+        if precision["wilson_95"] is None
+        else [_pct(bound) for bound in precision["wilson_95"]],
+        "interval_confidence_pct": 95,
+        "interval_note": "The interval is not symmetric. Give it as a range from low to high, "
+        "never as plus or minus.",
+    }
+    points, found = block.get("points"), block["detected_share_of_burned_points"]
+    if points is not None and found["value"] is not None:
+        out["random_cropland_points"] = {
+            "sampled": points["sampled"],
+            "could_be_judged": points["burned"] + points["not_burned"],
+            "looked_newly_burned": points["burned"],
+            "of_those_flagged_on_that_date": round(found["value"] * found["n"]),
+            "note": "Too few points to give a miss rate. It is consistent with burned area "
+            "being a lower bound.",
+        }
+    return out
+
+
 def _validation_numbers(season: int) -> dict:
     try:
         report = data.load(f"validation/{season}.json")
@@ -455,7 +487,7 @@ def _validation_numbers(season: int) -> dict:
         }
     }
     if "visual_qa" in report:
-        out["visual_check"] = report["visual_qa"]
+        out["visual_check"] = _visual_check(report["visual_qa"])
     else:
         out["visual_check"] = "Not done yet: the hand-labelled sample has not been scored."
     if "pm25" in report:

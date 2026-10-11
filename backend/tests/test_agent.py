@@ -450,3 +450,31 @@ def test_lambda_handler_refuses_an_address_over_the_limit(public, monkeypatch) -
     assert handler.lambda_handler(event, None)["statusCode"] == 200
     refused = handler.lambda_handler(event, None)
     assert refused["statusCode"] == 429 and json.loads(refused["body"])["error"] == "rate_limited"
+
+
+def test_leaked_tool_call_text_is_cut_from_an_answer():
+    from agent.handler import strip_tool_residue
+
+    leaked = (
+        "Precision is 87 % (95 % interval 78 to 93). "
+        '【functions.method_and_limits to=assistant<|channel|>commentary <|message|>{"topic":"x"}'
+    )
+    assert strip_tool_residue(leaked) == "Precision is 87 % (95 % interval 78 to 93)."
+    assert strip_tool_residue("A plain answer.") == "A plain answer."
+
+
+def test_visual_check_is_given_as_counts_and_percentages():
+    from agent import tools
+
+    block = {
+        "precision": {"value": 0.871, "wilson_95": [0.783, 0.926], "n": 85},
+        "scars": {"sampled": 100, "burned": 74, "not_burned": 11, "unsure": 15, "unlabelled": 0},
+        "detected_share_of_burned_points": {"value": 0.0, "wilson_95": [0.0, 0.278], "n": 10},
+        "points": {"sampled": 100, "burned": 10, "not_burned": 39, "unsure": 51, "unlabelled": 0},
+    }
+    shaped = tools._visual_check(block)
+    assert shaped["precision_pct"] == 87.1
+    assert shaped["precision_interval_low_high_pct"] == [78.3, 92.6]
+    assert shaped["interval_confidence_pct"] == 95
+    assert shaped["random_cropland_points"]["could_be_judged"] == 49
+    assert shaped["random_cropland_points"]["of_those_flagged_on_that_date"] == 0

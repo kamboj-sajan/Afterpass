@@ -537,7 +537,14 @@ def validate(
             **result,
         }
         report_path.write_text(json.dumps(report, indent=2) + "\n")
+        from afterpass import places
+        from afterpass import publish as publisher
+
+        replays = [pipeline.load_replay(name.strip(), season) for name in districts.split(",")]
+        _, release = places.load_localities()
+        publisher.publish_validation(season, publisher.metadata(replays, release))
         typer.echo(json.dumps(result, indent=2))
+        typer.echo(f"Wrote {report_path} and the public validation file")
         return
 
     replays, days, scenes = _load_season(season, districts)
@@ -557,6 +564,9 @@ def publish(
     season: int = 2025,
     districts: str = ",".join(DEMO_DISTRICTS),
     force: bool = False,
+    only: str = typer.Option(
+        "", help="With --target s3: upload only these files (comma-separated)."
+    ),
 ) -> None:
     """Rewrite the files in data/public from the cached replay, or upload them to S3."""
     from afterpass import pipeline, places
@@ -566,6 +576,10 @@ def publish(
         from afterpass import s3
 
         bucket = s3.stack_output("DataBucketName")
+        if only:
+            names = [name.strip() for name in only.split(",")]
+            typer.echo(f"s3://{bucket}/public: {s3.upload_only(bucket, names)} uploaded")
+            return
         ahead = None if force else s3.bucket_ahead(bucket)
         if ahead is not None:
             typer.echo(

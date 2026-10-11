@@ -10,6 +10,7 @@ import base64
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -203,6 +204,15 @@ def strands_runner(
     }
 
 
+# The model sometimes ends an answer with the start of a tool call written out as text.
+TOOL_RESIDUE = re.compile(r"\s*(?:【\s*functions\.|<\|[a-z_]+\|>).*\Z", re.DOTALL)
+
+
+def strip_tool_residue(answer: str) -> str:
+    """Cut an answer at the first leaked tool-call marker."""
+    return TOOL_RESIDUE.sub("", answer).rstrip()
+
+
 def ask(question: str, runner: Runner | None = None) -> dict:
     """Answer one question from the published data."""
     question = question.strip()
@@ -219,6 +229,7 @@ def ask(question: str, runner: Runner | None = None) -> dict:
     for attempt in range(1 + RETRIES_WHEN_UNGROUNDED):
         turn = Turn()
         answer, used = run(question, build_tools(turn), prompt)
+        answer = strip_tool_residue(answer)
         usage = {key: usage[key] + used.get(key, 0) for key in usage}
         check = grounding.check(answer, question, turn.results)
         if check["grounded"]:

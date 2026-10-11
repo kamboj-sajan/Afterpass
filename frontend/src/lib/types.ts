@@ -285,6 +285,7 @@ export interface Validation extends Meta {
     precision: Proportion
     detected_share_of_burned_points: Proportion
     scars: { sampled: number; burned: number; not_burned: number; unsure: number; unlabelled: number }
+    points: { sampled: number; burned: number; not_burned: number; unsure: number; unlabelled: number }
   }
   pm25?: {
     generated_at: string

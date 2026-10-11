@@ -85,9 +85,13 @@ Three checks, each with its own weakness:
   labels: a VIIRS pixel is 375 m wide, so many pixels near a detection did not burn. The share
   flagged therefore understates how many real burns are found. Thresholds come from one
   district and one season.
-- **Visual check.** A random sample of scars and of unflagged points is labelled by eye from
-  before and after images. This gives the real precision. Until it is done, precision is not
-  known.
+- **Visual check.** A random sample of 100 scars and 100 cropland points is labelled by eye
+  from before and after images, in mixed order. The share of sampled scars confirmed as
+  burned is the precision. It was done for the 2025 season by one person, so it carries that
+  person's judgement, and a scar's outline has its own shape, so the labeller can tell scars
+  from random points. Items marked unsure are left out, which narrows the sample. The random
+  points show whether burning is being missed: too few of them are burned to give a miss
+  rate, only an indication. The figures are in the validation file.
 - **Smoke against observed PM2.5.** The daily Delhi-wide index is compared with PM2.5 from
   CPCB and DPCC monitors (via OpenAQ). The two share a driver, the mixing layer, so part of any
   agreement is weather. A correlation shows the two move together; it does not show how much
