@@ -29,6 +29,14 @@ GDAL_ENV: dict[str, str] = {
     "VSI_CACHE": "TRUE",
     "AWS_NO_SIGN_REQUEST": "YES",
     "AWS_REGION": "us-west-2",
+    "GDAL_HTTP_MAX_RETRY": "5",
+    "GDAL_HTTP_RETRY_DELAY": "2",
+    # GDAL waits forever on a dead connection unless told otherwise. Drop a request that
+    # cannot connect in 20 s or that moves under 1 KB/s for 30 s; the reader then retries it.
+    "GDAL_HTTP_CONNECTTIMEOUT": "20",
+    "GDAL_HTTP_LOW_SPEED_LIMIT": "1000",
+    "GDAL_HTTP_LOW_SPEED_TIME": "30",
+    "GDAL_HTTP_TIMEOUT": "300",
 }
 for _k, _v in GDAL_ENV.items():
     os.environ.setdefault(_k, _v)

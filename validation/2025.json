@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-10-11T10:12:19+00:00",
+  "season": 2025,
+  "district": "Sangrur",
+  "sentinel2_dates": [
+    "2025-10-13",
+    "2025-10-15",
+    "2025-10-17",
+    "2025-10-18",
+    "2025-10-20",
+    "2025-10-23",
+    "2025-10-25",
+    "2025-10-28",
+    "2025-10-30",
+    "2025-11-02",
+    "2025-11-04",
+    "2025-11-06",
+    "2025-11-07",
+    "2025-11-09",
+    "2025-11-12",
+    "2025-11-14",
+    "2025-11-17",
+    "2025-11-19"
+  ],
+  "firms_window": [
+    "2025-10-25",
+    "2025-11-16"
+  ],
+  "samples": {
+    "confident_viirs_detections": 1275,
+    "positive_pixels": 201211,
+    "clear_negative_pixels": 220000,
+    "background_pixels": 220000
+  },
+  "thresholds": {
+    "t_nbr": 0.0,
+    "t_mirbi": 1.6,
+    "t_nir": 0.2,
+    "t_dnbr": 0.1
+  },
+  "metrics": {
+    "recall_on_firms_positives": 0.3182,
+    "fpr_on_clear_negatives": 0.0,
+    "background_flag_rate": 0.0921
+  },
+  "starting_guess_metrics": {
+    "recall_on_firms_positives": 0.3182,
+    "fpr_on_clear_negatives": 0.0,
+    "background_flag_rate": 0.0921
+  },
+  "best_scoring_alternative": {
+    "thresholds": {
+      "t_nbr": 0.05,
+      "t_mirbi": 1.5,
+      "t_nir": 0.24,
+      "t_dnbr": 0.1
+    },
+    "metrics": {
+      "recall_on_firms_positives": 0.3546,
+      "fpr_on_clear_negatives": 0.0,
+      "background_flag_rate": 0.1072
+    }
+  },
+  "max_recall_alternative": {
+    "thresholds": {
+      "t_nbr": 0.05,
+      "t_mirbi": 1.3,
+      "t_nir": 0.24,
+      "t_dnbr": 0.05
+    },
+    "metrics": {
+      "recall_on_firms_positives": 0.4366,
+      "fpr_on_clear_negatives": 0.0,
+      "background_flag_rate": 0.1632
+    }
+  },
+  "selection": "The brief asks for the highest recall with a clear-negative FPR under 2%. Clear negatives are defined by the same indices the rule tests, so every combination on the grid passes that limit and recall alone would pick the loosest thresholds. Combinations are therefore ranked by a positive-unlabelled score (see best_scoring). The labels are weak, so the brief's starting thresholds are kept unless the best-scoring set beats them by more than MIN_GAIN; a smaller gain is within the noise of the labels and is not a reason to flag more area. Detections are reported as a lower bound.",
+  "caveats": [
+    "Positives are weak labels. A VIIRS pixel is 375 m wide, so many pixels within 150 m of a detection did not burn; recall on them understates recall on real burns.",
+    "Clear negatives are defined by NBR and B8A, the same indices the rule tests, so the false-positive rate on them is optimistic. The visual QA sheet gives the real precision.",
+    "Thresholds come from one district and one season."
+  ]
+}
