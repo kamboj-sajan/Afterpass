@@ -1,7 +1,7 @@
 import { Languages, Search } from 'lucide-react'
 import { Slider } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
-import { css, EMBER, OFFICIAL, shareGradient } from '@/lib/colors'
+import { css, EMBER, OFFICIAL, receptorGradient, shareGradient, SMOKE, SMOKE_FRESH } from '@/lib/colors'
 import { SCAR_MIN_ZOOM, usingAmazonLocation } from '@/lib/config'
 import { formatDate, formatDateRange } from '@/lib/format'
 import { seasonWeeks } from '@/lib/metrics'
@@ -26,6 +26,31 @@ function LayerLegend(props: { id: LayerId }) {
       </div>
     )
   }
+  if (props.id === 'smoke') {
+    return (
+      <div className="mt-1.5">
+        <div
+          className="h-1.5 rounded-full"
+          style={{ background: `linear-gradient(90deg, ${css(SMOKE_FRESH)}, ${css(SMOKE)})` }}
+        />
+        <div className="text-text-2 mt-1 flex justify-between text-[10px]">
+          <span>{t('legend.smokeFresh')}</span>
+          <span>{t('legend.smokeOld')}</span>
+        </div>
+      </div>
+    )
+  }
+  if (props.id === 'delhi') {
+    return (
+      <div className="mt-1.5">
+        <div className="h-1.5 rounded-full" style={{ background: receptorGradient() }} />
+        <div className="text-text-2 mt-1 flex justify-between text-[10px]">
+          <span>{t('legend.saiLow')}</span>
+          <span>{t('legend.saiHigh')}</span>
+        </div>
+      </div>
+    )
+  }
   if (props.id === 'scars') {
     return (
       <div className="text-text-2 mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
@@ -46,8 +71,11 @@ function LayerLegend(props: { id: LayerId }) {
   return null
 }
 
-export function MissionPanel(props: { data: SeasonData }) {
-  const { data } = props
+/** Layers that need a published smoke run. */
+const SMOKE_LAYERS: LayerId[] = ['smoke', 'delhi']
+
+export function MissionPanel(props: { data: SeasonData; smokeState: 'none' | 'outside' | 'ready' }) {
+  const { data, smokeState } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const season = useExplorer((s) => s.season)
@@ -66,6 +94,8 @@ export function MissionPanel(props: { data: SeasonData }) {
     official: 'official',
     burns: 'ember',
     scars: 'ember',
+    smoke: 'neutral',
+    delhi: 'ember',
     districts: 'neutral',
   }
 
@@ -189,16 +219,25 @@ export function MissionPanel(props: { data: SeasonData }) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-text text-xs font-medium">{t(`layers.${id}.name`)}</span>
                   <Switch
-                    checked={layers[id]}
+                    checked={layers[id] && !(SMOKE_LAYERS.includes(id) && smokeState === 'none')}
                     onCheckedChange={() => toggleLayer(id)}
                     label={t(`layers.${id}.name`)}
                     accent={accents[id]}
+                    disabled={SMOKE_LAYERS.includes(id) && smokeState === 'none'}
                   />
                 </div>
                 <p className="text-text-2 mt-0.5 text-[11px] leading-snug">
                   {id === 'scars' ? `${t('layers.scars.legend')} (zoom ${SCAR_MIN_ZOOM}+)` : t(`layers.${id}.legend`)}
                 </p>
-                <LayerLegend id={id} />
+                {SMOKE_LAYERS.includes(id) && smokeState !== 'ready' ? (
+                  id === 'smoke' && (
+                    <p className="text-text-2 mt-1 text-[10px] italic">
+                      {t(smokeState === 'none' ? 'legend.smokeMissing' : 'legend.smokeOutside')}
+                    </p>
+                  )
+                ) : (
+                  <LayerLegend id={id} />
+                )}
               </li>
             ))}
           </ul>
@@ -208,7 +247,7 @@ export function MissionPanel(props: { data: SeasonData }) {
         <div className="text-text-2 flex items-center gap-1.5 text-[11px]">
           <InfoPopover label={t('mission.credits')} side="right">
             <ul className="flex flex-col gap-1.5">
-              {(['sentinel', 'firms', 'worldcover', 'places', 'boundaries', 'limits'] as const).map((key) => (
+              {(['sentinel', 'firms', 'worldcover', 'winds', 'places', 'boundaries', 'limits'] as const).map((key) => (
                 <li key={key}>{t(`credits.${key}`)}</li>
               ))}
               {!usingAmazonLocation && <li>{t('map.basemapFallback')}</li>}

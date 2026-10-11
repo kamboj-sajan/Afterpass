@@ -161,3 +161,80 @@ export interface SeasonData {
   /** Ids of the villages that have before/after imagery. */
   imagery: Set<string>
 }
+
+/** One entry of `smoke/index.json`. Times are unix seconds. */
+export interface SmokeRunSummary {
+  run_id: string
+  kind: 'replay' | 'live'
+  start: number
+  start_ist: string
+  hours: number
+  peak_sai: number
+  peak_level: SaiLevel
+  delhi_mean_peak: number
+  delhi_mean_peak_hour: number
+  trips: number
+  trips_mb: number
+}
+
+export type SaiLevel = 'low' | 'moderate' | 'high' | 'very_high'
+
+export interface SmokeModel {
+  run_hours: number
+  tau_h: number
+  levels: Record<SaiLevel, number>
+  winds: string
+  note: string
+}
+
+export interface SmokeIndex extends Meta {
+  runs: SmokeRunSummary[]
+}
+
+/** A smoke trail: positions with unix-second timestamps, `w` hectares it stands for. */
+export interface Trip {
+  path: [number, number][]
+  ts: number[]
+  w: number
+  /** Age of the smoke in seconds at the first vertex. */
+  age0: number
+}
+
+export interface TripsFile extends Items<Trip> {
+  run_id: string
+  start: number
+  hours: number
+  tau_h: number
+}
+
+export interface SaiNormaliser {
+  p95_raw: number
+  basis: string
+}
+
+/** `smoke/{run_id}/delhi_sai_h3r7.json`: the 0–100 index per Delhi cell per hour. */
+export interface DelhiSai extends Meta {
+  run_id: string
+  kind: 'replay' | 'live'
+  hours: number[]
+  normaliser: SaiNormaliser
+  cells: Record<string, number[]>
+}
+
+export interface SmokeLocality {
+  id: string
+  name: string
+  name_hi?: string
+  district: string
+  lon: number
+  lat: number
+  h3: string
+  sai: number[]
+}
+
+export interface SmokeRun {
+  summary: SmokeRunSummary
+  trips: TripsFile
+  sai: DelhiSai
+  localities: SmokeLocality[]
+}

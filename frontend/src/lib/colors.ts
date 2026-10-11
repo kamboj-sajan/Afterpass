@@ -38,3 +38,32 @@ export function shareGradient(): string {
   const stops = [0, 0.25, 0.5, 0.75, 1].map((t) => `${css(shareColor(t))} ${t * 100}%`)
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
+
+/** Smoke, brief §12.2: grey, used at 30–70% alpha. Fresh smoke starts amber and greys with age. */
+export const SMOKE: RGB = [154, 164, 184]
+export const SMOKE_FRESH: RGB = [255, 181, 71]
+
+/** Delhi receptor ramp for the Smoke Arrival Index, low to high. */
+const RECEPTOR_STOPS: RGB[] = [
+  [253, 230, 138],
+  [249, 115, 22],
+  [220, 38, 38],
+  [127, 29, 29],
+]
+
+/** Colour of an index value (0–100) on the receptor ramp. */
+export function receptorColor(sai: number): RGB {
+  const t = (Math.min(100, Math.max(0, sai)) / 100) * (RECEPTOR_STOPS.length - 1)
+  const i = Math.min(RECEPTOR_STOPS.length - 2, Math.floor(t))
+  return mix(RECEPTOR_STOPS[i], RECEPTOR_STOPS[i + 1], t - i)
+}
+
+/** Smoke colour for an age in hours: amber when fresh, grey after about half a day. */
+export function smokeColor(ageHours: number): RGB {
+  return mix(SMOKE_FRESH, SMOKE, Math.min(1, Math.max(0, ageHours / 12)))
+}
+
+export function receptorGradient(): string {
+  const stops = [0, 25, 50, 75, 100].map((v) => `${css(receptorColor(v))} ${v}%`)
+  return `linear-gradient(90deg, ${stops.join(', ')})`
+}

@@ -5,9 +5,10 @@
 
 import { create } from 'zustand'
 import type { Scope } from './metrics'
-import { DAY_MS, weekRange } from './time'
+import { runStartMs } from './smoke'
+import { DAY_MS, HOUR_MS, isoWeekOf, istParts, weekRange } from './time'
 
-export type LayerId = 'official' | 'burns' | 'scars' | 'districts'
+export type LayerId = 'official' | 'burns' | 'scars' | 'smoke' | 'delhi' | 'districts'
 export type Speed = 1 | 4 | 16
 
 export interface CameraCommand {
@@ -26,6 +27,7 @@ export type UiAction =
   | { type: 'highlight_village'; id: string }
   | { type: 'show_layer'; id: LayerId }
   | { type: 'open_imagery'; village_id: string }
+  | { type: 'play_smoke'; run_id: string; from_hour: number }
 
 interface ExplorerState {
   season: number
@@ -40,6 +42,8 @@ interface ExplorerState {
   highlightedDistrict: string | null
   highlightedVillage: string | null
   imageryVillage: string | null
+  /** The Delhi locality whose 48-hour outlook is shown. */
+  smokeLocality: string | null
   camera: CameraCommand | null
   paletteOpen: boolean
 
@@ -56,6 +60,8 @@ interface ExplorerState {
   highlightVillage: (id: string | null) => void
   showLayer: (id: LayerId) => void
   openImagery: (villageId: string | null) => void
+  setSmokeLocality: (id: string | null) => void
+  playSmoke: (runId: string, fromHour: number) => void
   runUiActions: (actions: UiAction[]) => void
 }
 
@@ -65,7 +71,7 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   season: 2025,
   week: null,
   districts: [],
-  layers: { official: true, burns: true, scars: true, districts: true },
+  layers: { official: true, burns: true, scars: true, smoke: true, delhi: true, districts: true },
   scope: 'week',
   clockMs: 0,
   playing: false,
@@ -73,6 +79,7 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   highlightedDistrict: null,
   highlightedVillage: null,
   imageryVillage: null,
+  smokeLocality: null,
   camera: null,
   paletteOpen: false,
 
@@ -106,6 +113,17 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   highlightVillage: (highlightedVillage) => set({ highlightedVillage }),
   showLayer: (id) => set((state) => ({ layers: { ...state.layers, [id]: true } })),
   openImagery: (imageryVillage) => set({ imageryVillage }),
+  setSmokeLocality: (smokeLocality) => set({ smokeLocality }),
+  playSmoke: (runId, fromHour) => {
+    const start = runStartMs(runId)
+    if (start === null) return
+    const at = start + fromHour * HOUR_MS
+    const state = get()
+    state.setWeek(isoWeekOf(istParts(at).date))
+    state.setClock(at)
+    set((current) => ({ layers: { ...current.layers, smoke: true, delhi: true } }))
+    state.setPlaying(true)
+  },
   runUiActions: (actions) => {
     const state = get()
     for (const action of actions) {
@@ -123,6 +141,8 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
         state.highlightVillage(action.id)
       } else if (action.type === 'show_layer') {
         state.showLayer(action.id)
+      } else if (action.type === 'play_smoke') {
+        state.playSmoke(action.run_id, action.from_hour)
       } else {
         state.openImagery(action.village_id)
       }
