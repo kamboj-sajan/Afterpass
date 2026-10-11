@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "AfterPass",
+    "language": "Language"
+  },
+  "mission": {
+    "title": "Mission",
+    "season": "Season",
+    "replay": "{{year}} replay",
+    "live": "{{year}} live",
+    "liveUnavailable": "The 2026 live season appears after the first live pipeline run.",
+    "dataThrough": "Data through {{date}}",
+    "week": "Week",
+    "weekLabel": "Week {{number}} · {{range}}",
+    "districts": "Districts",
+    "layers": "Layers",
+    "credits": "Data credits",
+    "search": "Search"
+  },
+  "layers": {
+    "official": {
+      "name": "Official detections",
+      "legend": "NASA FIRMS fire pixels. Larger dots are stronger fires."
+    },
+    "burns": {
+      "name": "Burned area",
+      "legend": "Height: hectares burned. Colour: share not in official counts."
+    },
+    "scars": {
+      "name": "Burn scars",
+      "legend": "Field outlines from Sentinel-2. Zoom in to see them."
+    },
+    "districts": {
+      "name": "District outlines",
+      "legend": "Click a district to focus on it."
+    }
+  },
+  "legend": {
+    "allRecorded": "All in official counts",
+    "noneRecorded": "None in official counts",
+    "unrecordedScar": "Not in official counts",
+    "recordedScar": "In official counts",
+    "scan": "The sweeping band is a visual metaphor for the satellite pass at about 13:30."
+  },
+  "truth": {
+    "title": "Ground truth",
+    "week": "This week",
+    "season": "Season",
+    "scopeWeek": "{{range}} · {{districts}}",
+    "scopeSeason": "Season {{year}} · {{districts}}",
+    "allDistricts": "all districts",
+    "noDistricts": "Choose at least one district."
+  },
+  "kpi": {
+    "official": "Official detections",
+    "officialNote": "FIRMS fire pixels, not fields",
+    "burned": "Burned area found",
+    "burnedNote": "hectares, from burn scars",
+    "missing": "Missing from official counts",
+    "missingNote": "of burned area, a lower bound",
+    "source": "Source",
+    "generated": "Generated {{when}} IST"
+  },
+  "chart": {
+    "weekly": "Burned area by week (ha)",
+    "recorded": "In official counts",
+    "unrecorded": "Not in official counts",
+    "hours": "When official detections happen (IST)",
+    "hoursNote": "Satellites pass at about 13:30. Most large fires now start between 15:00 and 19:00.",
+    "detections": "detections",
+    "weekShort": "W{{number}}"
+  },
+  "villages": {
+    "title": "Send help here first",
+    "subtitle": "Villages with the most burned area not in official counts",
+    "empty": "No unrecorded burning found for this selection.",
+    "value": "{{value}} ha",
+    "open": "Fly to {{name}} and open its imagery",
+    "fly": "Fly to {{name}}",
+    "hasImagery": "Before and after imagery available"
+  },
+  "imagery": {
+    "title": "{{name}}, {{district}}",
+    "before": "Before · {{date}}",
+    "after": "After · {{date}}",
+    "trueColour": "True colour",
+    "swir": "SWIR false colour",
+    "outline": "Scar outlines",
+    "window": "{{value}} ha not in official counts in this 1.5 km square, over the season",
+    "missing": "No imagery has been prepared for this village. Crops exist for the 20 villages with the most burned area not in official counts.",
+    "loading": "Loading imagery…",
+    "error": "The imagery for this village could not be loaded.",
+    "attribution": "Contains modified Copernicus Sentinel data {{year}}",
+    "swirNote": "In SWIR false colour, burned ground is dark maroon and growing crops are green.",
+    "close": "Close imagery",
+    "slider": "Drag to compare before and after",
+    "outlineNote": "Outlines mark the burn scars first seen on {{date}}."
+  },
+  "timeline": {
+    "play": "Play the week",
+    "pause": "Pause",
+    "speed": "Playback speed",
+    "overpass": "Satellite pass, about 13:30",
+    "burnWindow": "Most fires start 15:00–19:00",
+    "scrub": "Time in the week",
+    "ist": "IST"
+  },
+  "palette": {
+    "placeholder": "Search districts and villages…",
+    "districts": "Districts",
+    "villages": "Villages",
+    "empty": "Nothing found.",
+    "title": "Search places"
+  },
+  "banner": {
+    "missing": "Sentinel-2 imagery for {{district}} could not be downloaded for {{dates}}.",
+    "noPass": "No Sentinel-2 pass over {{district}} this week, so no new scars can be seen.",
+    "partial": "Only {{pct}}% of {{district}}'s cropland was visible this week (clouds, or the edge of the satellite's path)."
+  },
+  "tooltip": {
+    "firms": "{{time}} IST · {{satellite}}",
+    "firmsDate": "{{date}}",
+    "frp": "Fire power {{value}} MW",
+    "cell": "{{burned}} ha burned",
+    "cellShare": "{{share}} not in official counts",
+    "scarUnrecorded": "Not in official counts",
+    "scarRecorded": "In official counts",
+    "scarDetail": "{{area}} ha · first seen {{date}}",
+    "district": "{{burned}} ha burned this season · {{share}} not in official counts"
+  },
+  "satellite": {
+    "N": "Suomi NPP",
+    "N20": "NOAA-20",
+    "N21": "NOAA-21",
+    "Terra": "Terra",
+    "Aqua": "Aqua"
+  },
+  "state": {
+    "loading": "Loading data…",
+    "errorTitle": "The data could not be loaded",
+    "errorBody": "The app could not reach {{url}}. When running locally, start the data server with: make serve-data",
+    "retry": "Try again"
+  },
+  "map": {
+    "zoomForScars": "Zoom in to see individual burn scars",
+    "basemapFallback": "Development basemap. The India political view arrives with the Amazon Location key."
+  },
+  "credits": {
+    "sentinel": "Contains modified Copernicus Sentinel data 2025–2026.",
+    "firms": "Fire detections: NASA FIRMS, from LANCE, part of NASA's Earth Science Data and Information System (ESDIS).",
+    "worldcover": "Cropland mask: © ESA WorldCover project 2021, contains modified Copernicus Sentinel data.",
+    "places": "Places: © OpenStreetMap contributors, Overture Maps Foundation.",
+    "boundaries": "District boundaries: geoBoundaries.",
+    "limits": "Burn scars are a lower bound: clouds leave gaps, fields under 0.5 ha are missed, and scars tilled under before the next clear pass are not seen."
+  }
+}

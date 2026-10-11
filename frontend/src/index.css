@@ -2,7 +2,8 @@
 
 @theme {
   --color-bg: #05070d;
-  --color-panel: rgba(14, 18, 30, 0.62);
+  --color-panel: rgba(14, 18, 30, 0.74);
+  --color-panel-solid: #0e121e;
   --color-hairline: rgba(255, 255, 255, 0.08);
   --color-ember: #ff6b2c;
   --color-ember-2: #ffb547;
@@ -12,6 +13,22 @@
   --color-text: #e8ecf5;
   --color-text-2: #8a93a8;
   --color-success: #34d399;
+
+  --font-sans: 'Inter Variable', 'Noto Sans Devanagari Variable', system-ui, sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Noto Sans Devanagari Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --radius-panel: 16px;
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Explorer layout: the map's camera and controls keep clear of these. */
+:root {
+  --edge: 16px;
+  --panel-left: 292px;
+  --panel-right: 360px;
+  --timeline-h: 60px;
 }
 
 html,
@@ -24,5 +41,117 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Component classes live in the components layer so that utilities (`fixed`, `absolute`,
+   widths) can override them. */
+@layer components {
+  /* Glass panel: blurred backdrop, hairline border, faint top highlight, 2% noise. */
+  .panel {
+    position: relative;
+    background: var(--color-panel);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 28%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  }
+
+  .panel > * {
+    position: relative;
+  }
+
+  /* Numbers line up in columns. */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-official);
+    outline-offset: 2px;
+  }
+
+  /* Thin scrollbars inside panels. */
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  .skeleton {
+    border-radius: 8px;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      rgba(255, 255, 255, 0.1) 37%,
+      rgba(255, 255, 255, 0.04) 63%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+/* MapLibre controls sit in the open map between the panels, above the timeline (they carry
+   their own 10px margin), restyled for the dark console. */
+.maplibregl-ctrl-bottom-right {
+  right: calc(var(--panel-right) + var(--edge) + 6px);
+  bottom: calc(var(--timeline-h) + var(--edge) + 6px);
+}
+
+.maplibregl-ctrl-group {
+  background: var(--color-panel-solid) !important;
+  border: 1px solid var(--color-hairline);
+  box-shadow: none !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-hairline) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.9);
+}
+
+.maplibregl-ctrl-attrib {
+  background: rgba(5, 7, 13, 0.6) !important;
+  color: var(--color-text-2);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-text-2) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

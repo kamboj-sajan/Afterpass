@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis detect fetch replay imagery qa live serve-data web build deploy
+.PHONY: help setup lint test smoke-apis detect fetch replay imagery qa live serve-data web walkthrough build deploy
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -17,8 +17,12 @@ lint: ## ruff + eslint
 	cd backend && uv run ruff check . && uv run ruff format --check .
 	cd frontend && npm run lint
 
-test: lint ## Lint, then run pytest
+test: lint ## Lint, then run the backend and frontend unit tests
 	$(UV) pytest -q
+	cd frontend && npm run test
+
+walkthrough: ## Record the Explorer walkthrough (needs serve-data and web running)
+	cd frontend && node scripts/walkthrough.mjs
 
 smoke-apis: ## Check FIRMS and Earth Search respond for Sangrur
 	$(UV) python scripts/smoke_apis.py

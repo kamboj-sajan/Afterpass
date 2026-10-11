@@ -29,3 +29,6 @@ frontend/dist/
 
 # Visual QA sheet (generated, embeds imagery; rebuild with `make qa`)
 reports/qa_sheet.html
+
+# Screen recordings (large; regenerate with `make walkthrough`)
+reports/*.webm
