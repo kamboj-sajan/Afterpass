@@ -5,17 +5,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Map, { NavigationControl, useControl, type MapRef } from 'react-map-gl/maplibre'
 import { burnsLayer, prepareBurns, type BurnCell } from '@/layers/burns'
+import { delhiLayer, prepareDelhi, type DelhiCell } from '@/layers/delhi'
 import { districtBounds, districtLayers, type DistrictFeature } from '@/layers/districts'
 import { officialLayer, prepareOfficial, type OfficialDatum, type Sweep } from '@/layers/official'
 import { scanLayer, villageLayers } from '@/layers/overlays'
 import { scarLayers, type ScarFeature } from '@/layers/scars'
+import { prepareSmoke, smokeLayer } from '@/layers/smoke'
 import { INITIAL_VIEW, REGION_BOUNDS, SCAR_MIN_ZOOM, basemapStyle } from '@/lib/config'
 import { useScars } from '@/lib/data'
-import { formatDate, formatHectares, formatShare, formatTime } from '@/lib/format'
+import { formatDate, formatDateTime, formatHectares, formatShare, formatTime } from '@/lib/format'
 import { useReducedMotion, useRise } from '@/lib/motion'
+import { hourIndex, saiLevel } from '@/lib/smoke'
 import { useExplorer } from '@/lib/store'
 import { weekRange } from '@/lib/time'
-import type { SeasonData } from '@/lib/types'
+import type { SeasonData, SmokeRun } from '@/lib/types'
 
 function DeckOverlay(props: MapboxOverlayProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props))
@@ -69,8 +72,13 @@ function panelPadding(): { top: number; bottom: number; left: number; right: num
   }
 }
 
-export function MapView(props: { data: SeasonData; sweep: Sweep | null }) {
-  const { data, sweep } = props
+/** Phones get fewer smoke trails (brief §12.2). */
+function isSmallScreen(): boolean {
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
+export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: SmokeRun | null }) {
+  const { data, sweep, smoke } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const reduced = useReducedMotion()
@@ -114,6 +122,10 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null }) {
     [data.cells.items, week, districts],
   )
   const rise = useRise(`${week}|${districts.join(',')}`, 1200)
+
+  const trails = useMemo(() => (smoke === null ? [] : prepareSmoke(smoke.trips, isSmallScreen())), [smoke])
+  const smokeHour = smoke === null ? 0 : hourIndex(smoke.summary, clockMs)
+  const delhiCells = useMemo(() => (smoke === null ? [] : prepareDelhi(smoke.sai, smokeHour)), [smoke, smokeHour])
 
   // Scar files are large, so only the districts on screen are loaded, and only when zoomed in.
   const scarsOn = layers.scars && zoom >= SCAR_MIN_ZOOM
@@ -173,6 +185,13 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null }) {
     districtParts.outlines,
     burnsLayer({ data: cells, rise, opacity: columnOpacity(zoom), visible: layers.burns }),
     ...scarLayers({ collections: scars, clockMs, weekStart, visible: scarsOn }),
+    delhiLayer({ data: delhiCells, visible: layers.delhi && smoke !== null }),
+    smokeLayer({
+      data: trails,
+      runStart: smoke?.trips.start ?? 0,
+      clockMs,
+      visible: layers.smoke && smoke !== null,
+    }),
     scanLayer(dataBounds, sweep?.progress ?? null),
     officialLayer({ data: official, clockMs, weekStart, sweep, visible: layers.official }),
     districtParts.labels,
@@ -206,6 +225,12 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null }) {
           area: formatHectares(scar.area_ha),
           date: formatDate(scar.first_detected, language),
         }),
+      ]
+    } else if (layer.id === 'delhi' && smoke !== null) {
+      const cell = object as DelhiCell
+      lines = [
+        t('tooltip.delhi', { value: cell.sai, level: t(`smoke.level.${saiLevel(cell.sai)}`) }),
+        `${formatDateTime(smoke.sai.hours[smokeHour] * 1000, language)} IST`,
       ]
     } else if (layer.id === 'districts') {
       const district = (object as DistrictFeature).properties

@@ -44,3 +44,23 @@ def make_scene(tmp_path):
         return Scene(day, acquired, path)
 
     return _make
+
+
+@pytest.fixture
+def make_wind():
+    """A WindField on the real grid with the same u, v and mixing height everywhere."""
+    from afterpass import winds
+
+    def _make(u, v, pbl=500.0, hours=3, start=0) -> winds.WindField:
+        shape = (hours, len(winds.GRID_LATS), len(winds.GRID_LONS))
+        return winds.WindField(
+            times=int(start) + np.arange(hours, dtype=np.int64) * 3600,
+            lats=winds.GRID_LATS,
+            lons=winds.GRID_LONS,
+            u=np.array(np.broadcast_to(u, shape), dtype=float),
+            v=np.array(np.broadcast_to(v, shape), dtype=float),
+            pbl=np.array(np.broadcast_to(pbl, shape), dtype=float),
+            source="test",
+        )
+
+    return _make

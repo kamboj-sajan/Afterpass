@@ -10,9 +10,15 @@ import type {
   ImageryMeta,
   Items,
   Latest,
+  DelhiSai,
   ScarCollection,
   SeasonData,
+  SmokeIndex,
+  SmokeLocality,
+  SmokeRun,
+  SmokeRunSummary,
   Summary,
+  TripsFile,
   Village,
 } from './types'
 
@@ -147,4 +153,52 @@ export function useImagery(villageId: string | null, prepared: boolean): Loadabl
     (): Promise<ImageryMeta | 'missing'> =>
       prepared ? getJson<ImageryMeta>(`imagery/${villageId}/meta.json`) : Promise.resolve('missing' as const),
   )
+}
+
+/** `smoke/index.json`, or null until `afterpass smoke` has run. */
+export function useSmokeIndex(): SmokeIndex | null {
+  const result = useLoad('smoke:index', () =>
+    getJson<SmokeIndex>('smoke/index.json').catch((error: unknown) => {
+      if (error instanceof DataError && error.status === 404) return null
+      throw error
+    }),
+  )
+  return result?.status === 'ready' ? result.data : null
+}
+
+function loadSmokeRun(summary: SmokeRunSummary): Promise<SmokeRun> {
+  const base = `smoke/${summary.run_id}`
+  return Promise.all([
+    getJson<TripsFile>(`${base}/trips.json`),
+    getJson<DelhiSai>(`${base}/delhi_sai_h3r7.json`),
+    getJson<Items<SmokeLocality>>(`${base}/localities.json`),
+  ]).then(([trips, sai, localities]) => ({ summary, trips, sai, localities: localities.items }))
+}
+
+/** One run's trails, Delhi index and localities. The previous run stays on screen while the next loads. */
+export function useSmokeRun(summary: SmokeRunSummary | null): SmokeRun | null {
+  const [run, setRun] = useState<SmokeRun | null>(null)
+  const runId = summary?.run_id ?? null
+  useEffect(() => {
+    if (summary === null) return
+    let cancelled = false
+    loadSmokeRun(summary).then(
+      (loaded) => {
+        if (!cancelled) setRun(loaded)
+      },
+      // A run that fails to load leaves the previous one on screen; the index lists only published runs.
+      () => undefined,
+    )
+    return () => {
+      cancelled = true
+    }
+    // `summary` is a new object whenever the index reloads; the run id identifies it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId])
+  return summary === null ? null : run
+}
+
+/** Start downloading a run before the clock reaches it, so playback does not stall. */
+export function prefetchSmokeRun(summary: SmokeRunSummary): void {
+  void loadSmokeRun(summary).catch(() => undefined)
 }

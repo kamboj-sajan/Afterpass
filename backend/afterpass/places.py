@@ -148,3 +148,62 @@ def assign_villages(scars: gpd.GeoDataFrame, localities: gpd.GeoDataFrame) -> gp
     out["village_lon"] = nearest["lon"].to_numpy().round(5)
     out["village_lat"] = nearest["lat"].to_numpy().round(5)
     return out
+
+
+def delhi_geometry() -> BaseGeometry:
+    """NCT of Delhi (EPSG:4326): the union of its districts."""
+    districts = load_districts()
+    return districts[districts["state"] == "Delhi"].geometry.union_all()
+
+
+def load_delhi_localities() -> tuple[gpd.GeoDataFrame, str]:
+    """Delhi localities and neighbourhoods from Overture, with Hindi names where present.
+
+    Kept apart from `load_localities` so adding the Hindi column does not change the village
+    assignment of earlier runs. Returns points (EPSG:4326) with `locality_id`, `name`,
+    `name_hi` (empty when Overture has none) and `district`, plus the Overture release.
+    """
+    cached = sorted(cache_path("overture", "x").parent.glob("delhi_localities_*.csv"))
+    delhi = delhi_geometry()
+    if cached:
+        dest = cached[-1]
+    else:
+        release = httpx.get(OVERTURE_CATALOG, timeout=60).raise_for_status().json()["latest"]
+        dest = cache_path("overture", f"delhi_localities_{release}.csv")
+        w, s, e, n = delhi.buffer(0.02).bounds
+        subtypes = ", ".join(f"'{t}'" for t in LOCALITY_SUBTYPES)
+        tmp = dest.with_name(dest.name + ".part")
+        con = duckdb.connect()
+        con.execute("INSTALL httpfs; LOAD httpfs; INSTALL spatial; LOAD spatial;")
+        con.execute("SET s3_region = 'us-west-2';")
+        con.execute(
+            f"""
+            COPY (
+                SELECT id, names.primary AS name, names.common['hi'] AS name_hi, subtype,
+                       ST_X(geometry) AS lon, ST_Y(geometry) AS lat
+                FROM read_parquet('{OVERTURE_DIVISIONS.format(release=release)}',
+                                  hive_partitioning = 1)
+                WHERE country = 'IN' AND subtype IN ({subtypes})
+                  AND names.primary IS NOT NULL
+                  AND bbox.xmin BETWEEN {w} AND {e} AND bbox.ymin BETWEEN {s} AND {n}
+                ORDER BY id
+            ) TO '{tmp}' (FORMAT CSV, HEADER)
+            """
+        )
+        tmp.replace(dest)
+    table = pd.read_csv(dest, keep_default_na=False)
+    table = table[table["name"].str.strip() != ""]
+    points = gpd.GeoDataFrame(
+        {
+            "locality_id": table["id"].str[:8] + "-" + table["name"].map(_slug),
+            "name": table["name"],
+            "name_hi": table["name_hi"].str.strip(),
+        },
+        geometry=gpd.points_from_xy(table["lon"], table["lat"]),
+        crs="EPSG:4326",
+    )
+    districts = load_districts()
+    zones = districts[districts["state"] == "Delhi"][["district", "geometry"]]
+    points = gpd.sjoin(points, zones, predicate="within", how="inner").drop(columns="index_right")
+    points = points.sort_values("locality_id").drop_duplicates("locality_id")
+    return points.reset_index(drop=True), dest.stem.removeprefix("delhi_localities_")

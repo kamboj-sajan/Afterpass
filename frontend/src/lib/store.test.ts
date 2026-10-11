@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useExplorer } from './store'
-import { weekRange } from './time'
+import { istMs, weekRange } from './time'
 
 const initial = useExplorer.getState()
 
@@ -33,7 +33,7 @@ describe('explorer store', () => {
   })
 
   it('runs the agent ui_actions', () => {
-    useExplorer.setState({ layers: { official: true, burns: true, scars: false, districts: true } })
+    useExplorer.setState({ layers: { ...initial.layers, scars: false } })
     useExplorer.getState().runUiActions([
       { type: 'fly_to', lon: 75.9, lat: 30.2, zoom: 12 },
       { type: 'highlight_district', name: 'Sangrur' },
@@ -55,5 +55,15 @@ describe('explorer store', () => {
     const first = useExplorer.getState().camera?.nonce
     useExplorer.getState().flyTo(target)
     expect(useExplorer.getState().camera?.nonce).not.toBe(first)
+  })
+
+  it('plays a smoke run from an hour, on that week, with the smoke layers on', () => {
+    useExplorer.setState({ layers: { ...initial.layers, smoke: false, delhi: false } })
+    useExplorer.getState().runUiActions([{ type: 'play_smoke', run_id: '2025-11-03', from_hour: 18 }])
+    const state = useExplorer.getState()
+    expect(state.week).toBe('2025-W45')
+    expect(state.clockMs).toBe(istMs('2025-11-03', 18))
+    expect(state.layers.smoke && state.layers.delhi).toBe(true)
+    expect(state.playing).toBe(true)
   })
 })

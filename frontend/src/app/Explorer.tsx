@@ -1,18 +1,22 @@
-import { useEffect } from 'react'
+import { Wind } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Banners } from '@/components/Banners'
 import { CommandPalette } from '@/components/CommandPalette'
+import { DelhiOutlook } from '@/components/DelhiOutlook'
+import { FpsMeter, showFps } from '@/components/FpsMeter'
 import { GroundTruthPanel } from '@/components/GroundTruthPanel'
 import { ImageryDrawer } from '@/components/ImageryDrawer'
 import { MapView } from '@/components/MapView'
 import { MissionPanel } from '@/components/MissionPanel'
 import { Timeline } from '@/components/Timeline'
 import { DATA_BASE_URL } from '@/lib/config'
-import { useSeasonData } from '@/lib/data'
+import { prefetchSmokeRun, useSeasonData, useSmokeIndex, useSmokeRun } from '@/lib/data'
 import { weeklySeries } from '@/lib/metrics'
 import { usePlayback } from '@/lib/playback'
+import { nextRun, runForClock } from '@/lib/smoke'
 import { useExplorer } from '@/lib/store'
-import type { SeasonData } from '@/lib/types'
+import type { SeasonData, SmokeRun } from '@/lib/types'
 
 /** Start on every published district and the week with the most burned area. */
 function useInitialSelection(data: SeasonData | null) {
@@ -68,31 +72,78 @@ function LoadError() {
   )
 }
 
+/**
+ * The season's smoke run under the clock (one per IST day), loaded as the clock moves. The next
+ * day's run is fetched ahead so playback does not wait on it.
+ */
+function useSmokeForClock(season: number): { run: SmokeRun | null; state: 'none' | 'outside' | 'ready' } {
+  const index = useSmokeIndex()
+  const runs = useMemo(
+    () => (index === null ? [] : index.runs.filter((r) => r.kind === 'replay' && r.run_id.startsWith(`${season}-`))),
+    [index, season],
+  )
+  // A string selector: the Explorer re-renders when the run changes, not on every frame.
+  const runId = useExplorer((s) => runForClock(runs, s.clockMs)?.run_id ?? null)
+  const summary = runs.find((r) => r.run_id === runId) ?? null
+  const run = useSmokeRun(summary)
+  useEffect(() => {
+    if (summary === null) return
+    const next = nextRun(runs, summary)
+    if (next !== null) prefetchSmokeRun(next)
+  }, [runs, summary])
+  if (index === null) return { run: null, state: 'none' }
+  if (summary === null || run === null) return { run: null, state: 'outside' }
+  return { run, state: 'ready' }
+}
+
 export function Explorer() {
+  const { t } = useTranslation()
   const season = useExplorer((s) => s.season)
   const week = useExplorer((s) => s.week)
+  const smokeOn = useExplorer((s) => s.layers.smoke || s.layers.delhi)
   const result = useSeasonData(season)
   const data = result.status === 'ready' ? result.data : null
   useInitialSelection(data)
   const sweep = usePlayback()
+  const smoke = useSmokeForClock(season)
+  const [outlookOpen, setOutlookOpen] = useState(true)
 
   if (result.status === 'error') return <LoadError />
   if (data === null || week === null) return <Loading />
 
   return (
     <div className="absolute inset-0">
-      <MapView data={data} sweep={sweep} />
+      <MapView data={data} sweep={sweep} smoke={smoke.run} />
       {/* Panels float over the map; the wrapper ignores the pointer so the map stays draggable. */}
       <div className="pointer-events-none absolute inset-0 grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)_auto] gap-(--edge) p-(--edge)">
         <div className="pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full">
-          <MissionPanel data={data} />
+          <MissionPanel data={data} smokeState={smoke.state} />
         </div>
         <div className="flex min-h-0 flex-col items-center justify-between gap-3">
           <div className="pointer-events-auto">
             <Banners data={data} />
           </div>
-          <div className="pointer-events-auto self-start">
-            <ImageryDrawer data={data} />
+          <div className="flex w-full items-end justify-between gap-3">
+            <div className="pointer-events-auto">
+              <ImageryDrawer data={data} />
+            </div>
+            {smoke.run !== null && smokeOn && (
+              // Clear of the map's zoom and compass buttons, which sit in this corner.
+              <div className="pointer-events-auto mr-11">
+                {outlookOpen ? (
+                  <DelhiOutlook run={smoke.run} onClose={() => setOutlookOpen(false)} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setOutlookOpen(true)}
+                    className="panel focus-ring text-text inline-flex cursor-pointer items-center gap-1.5 px-3 py-2 text-xs font-medium"
+                  >
+                    <Wind size={14} className="text-smoke" aria-hidden />
+                    {t('smoke.open')}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="pointer-events-auto col-start-3 row-span-2 row-start-1 flex min-h-0 flex-col [&>section]:max-h-full">
@@ -102,7 +153,8 @@ export function Explorer() {
           <Timeline />
         </div>
       </div>
-      <CommandPalette data={data} />
+      <CommandPalette data={data} localities={smoke.run?.localities ?? []} />
+      {showFps && <FpsMeter />}
     </div>
   )
 }

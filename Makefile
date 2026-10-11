@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis detect fetch replay imagery qa live serve-data web walkthrough build deploy
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 live serve-data web walkthrough build deploy
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ walkthrough: ## Record the Explorer walkthrough (needs serve-data and web runnin
 smoke-apis: ## Check FIRMS and Earth Search respond for Sangrur
 	$(UV) python scripts/smoke_apis.py
 
+check-winds: ## Check which Open-Meteo endpoints have 100 m wind and mixing height
+	$(UV) python scripts/check_winds.py
+
 detect: ## Detect burn scars for Sangrur, 1-15 Nov 2025, and render the quick-look
 	$(UV) afterpass detect --district Sangrur --start 2025-11-01 --end 2025-11-15
 
@@ -41,6 +44,9 @@ imagery: ## Render before/after crops for the top 20 villages
 
 qa: ## Build the visual QA sheet (reports/qa_sheet.html)
 	$(UV) afterpass validate --season 2025
+
+smoke: ## Run the 2025 smoke replay: one 48-hour run per day, Delhi SAI and trails
+	$(UV) afterpass smoke --season 2025
 
 live: ## Process the 2026 season up to today
 	$(UV) afterpass live

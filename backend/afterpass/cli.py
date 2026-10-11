@@ -6,19 +6,23 @@ import json
 import shutil
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import typer
 
 from afterpass.config import (
     CACHE_DIR,
     DEMO_DISTRICTS,
+    IST,
     PUBLIC_DIR,
     REPORTS_DIR,
+    SEASONS,
     VALIDATION_DIR,
     season_window,
 )
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+IST_TZ = ZoneInfo(IST)
 
 
 def _todo(phase: int) -> None:
@@ -214,9 +218,51 @@ def live() -> None:
 
 
 @app.command()
-def smoke() -> None:
-    """Run the 48-hour smoke forecast."""
-    _todo(4)
+def smoke(
+    season: int = 2025,
+    districts: str = ",".join(DEMO_DISTRICTS),
+    live: bool = typer.Option(False, help="Forecast 48 hours from now instead of a replay."),
+    winds: str = typer.Option(
+        "historical_forecast", help="Replay winds: historical_forecast or era5."
+    ),
+    particles_per_day: int = typer.Option(0, help="Particles on the busiest day (0: default)."),
+) -> None:
+    """Run the smoke model: a season replay (one 48-hour run per day) or a live forecast."""
+    import time
+
+    from afterpass import outlook
+    from afterpass import smoke as model
+
+    params = model.SmokeParams()
+    if particles_per_day:
+        params = model.SmokeParams(max_particles_per_day=particles_per_day)
+    names = [name.strip() for name in districts.split(",")]
+    tic = time.perf_counter()
+    if live:
+        live_season = max(SEASONS)
+        try:
+            result = outlook.live(live_season, names, params, log=typer.echo)
+        except FileNotFoundError as exc:
+            typer.echo(f"{exc}\nA live forecast needs this season's scars from `afterpass live`.")
+            raise typer.Exit(1) from None
+    else:
+        result = outlook.replay(season, names, winds, params, log=typer.echo)
+
+    typer.echo(f"Winds: {result.wind_source}")
+    typer.echo(f"Particles: {result.particles:,} at {result.ha_each:.3f} ha each")
+    typer.echo(f"Normaliser (SAI 100): {result.normaliser['p95_raw']:.4g} raw units")
+    typer.echo(
+        f"{'Run':<16} {'Peak SAI':>8} {'Level':>10} {'Delhi mean':>10} {'Peak (IST)':<12} "
+        f"{'Trips':>7} {'MB':>6}"
+    )
+    for run in result.runs:
+        peak = datetime.fromtimestamp(run["delhi_mean_peak_hour"], IST_TZ)
+        typer.echo(
+            f"{run['run_id']:<16} {run['peak_sai']:>8} {run['peak_level']:>10} "
+            f"{run['delhi_mean_peak']:>10.1f} {peak:%d %b %H:%M} "
+            f"{run['trips']:>7,} {run['trips_mb']:>6.2f}"
+        )
+    typer.echo(f"Done in {(time.perf_counter() - tic) / 60:.1f} min")
 
 
 def _load_season(season: int, districts: str):

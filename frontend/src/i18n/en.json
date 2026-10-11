@@ -30,6 +30,14 @@
       "name": "Burn scars",
       "legend": "Field outlines from Sentinel-2. Zoom in to see them."
     },
+    "smoke": {
+      "name": "Smoke trails",
+      "legend": "Modelled smoke from the burning, 48 hours at a time. Amber is fresh, grey is older."
+    },
+    "delhi": {
+      "name": "Delhi smoke index",
+      "legend": "Height and colour: the Smoke Arrival Index this hour, a relative 0–100 scale."
+    },
     "districts": {
       "name": "District outlines",
       "legend": "Click a district to focus on it."
@@ -40,7 +48,13 @@
     "noneRecorded": "None in official counts",
     "unrecordedScar": "Not in official counts",
     "recordedScar": "In official counts",
-    "scan": "The sweeping band is a visual metaphor for the satellite pass at about 13:30."
+    "scan": "The sweeping band is a visual metaphor for the satellite pass at about 13:30.",
+    "smokeFresh": "Fresh",
+    "smokeOld": "Older",
+    "saiLow": "Low",
+    "saiHigh": "Very high",
+    "smokeMissing": "No smoke outlook has been published yet (make smoke).",
+    "smokeOutside": "No smoke run covers this time."
   },
   "truth": {
     "title": "Ground truth",
@@ -106,11 +120,12 @@
     "ist": "IST"
   },
   "palette": {
-    "placeholder": "Search districts and villages…",
+    "placeholder": "Search districts, villages and Delhi localities…",
     "districts": "Districts",
     "villages": "Villages",
     "empty": "Nothing found.",
-    "title": "Search places"
+    "title": "Search places",
+    "delhi": "Delhi localities"
   },
   "banner": {
     "missing": "Sentinel-2 imagery for {{district}} could not be downloaded for {{dates}}.",
@@ -126,7 +141,8 @@
     "scarUnrecorded": "Not in official counts",
     "scarRecorded": "In official counts",
     "scarDetail": "{{area}} ha · first seen {{date}}",
-    "district": "{{burned}} ha burned this season · {{share}} not in official counts"
+    "district": "{{burned}} ha burned this season · {{share}} not in official counts",
+    "delhi": "Smoke Arrival Index {{value}} · {{level}}"
   },
   "satellite": {
     "N": "Suomi NPP",
@@ -151,6 +167,31 @@
     "worldcover": "Cropland mask: © ESA WorldCover project 2021, contains modified Copernicus Sentinel data.",
     "places": "Places: © OpenStreetMap contributors, Overture Maps Foundation.",
     "boundaries": "District boundaries: geoBoundaries.",
-    "limits": "Burn scars are a lower bound: clouds leave gaps, fields under 0.5 ha are missed, and scars tilled under before the next clear pass are not seen."
+    "limits": "Burn scars are a lower bound: clouds leave gaps, fields under 0.5 ha are missed, and scars tilled under before the next clear pass are not seen.",
+    "winds": "Weather data by Open-Meteo.com (CC BY 4.0)."
+  },
+  "smoke": {
+    "title": "Delhi smoke outlook",
+    "fromReplay": "48 hours from {{when}} IST · 2025 replay",
+    "fromLive": "48 hours from {{when}} IST · forecast",
+    "about": "About the Smoke Arrival Index",
+    "method": "Smoke leaves the burned fields between 15:00 and 19:00 IST on each burn day (most large fires now start after 3 PM), rides the 100 m wind from Open-Meteo, spreads out and fades over about a day and a half. The index adds up the smoke over each part of Delhi and counts it for more when the air's mixing layer is low. 100 is the 95th percentile of the 2025 season. This is a simplified transport model, not a chemistry model.",
+    "persistence": "Forecast assumes burning continues at the last 3 days' rate, plus today's official fire detections.",
+    "search": "Find a Delhi locality (English or हिंदी)",
+    "now": "Now",
+    "noLocalities": "No Delhi localities in this run.",
+    "noPeak": "Stays Low through these 48 hours.",
+    "peak": "Peak: {{from}} – {{to}} · {{level}}",
+    "explain": "The Smoke Arrival Index (0–100) is a relative measure of how much stubble smoke reaches a place. It is not a PM2.5 reading or medical advice. For health decisions, check",
+    "officialAqi": "official AQI (CPCB, SAMEER app)",
+    "indexShort": "Smoke index",
+    "close": "Close the smoke outlook",
+    "open": "Delhi smoke outlook",
+    "level": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High",
+      "very_high": "Very high"
+    }
   }
 }

@@ -6,8 +6,9 @@ export function Switch(props: {
   onCheckedChange: (checked: boolean) => void
   label: string
   accent?: 'official' | 'ember' | 'neutral'
+  disabled?: boolean
 }) {
-  const { checked, onCheckedChange, label, accent = 'neutral' } = props
+  const { checked, onCheckedChange, label, accent = 'neutral', disabled = false } = props
   const on = {
     official: 'data-[state=checked]:bg-official/80',
     ember: 'data-[state=checked]:bg-ember/85',
@@ -16,10 +17,11 @@ export function Switch(props: {
   return (
     <Primitive.Root
       checked={checked}
+      disabled={disabled}
       onCheckedChange={onCheckedChange}
       aria-label={label}
       className={cn(
-        'focus-ring relative h-5 w-9 shrink-0 cursor-pointer rounded-full bg-white/12 transition-colors duration-200',
+        'focus-ring relative h-5 w-9 shrink-0 cursor-pointer rounded-full bg-white/12 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40',
         on,
       )}
     >
