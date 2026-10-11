@@ -461,13 +461,16 @@ Resources:
       DockerContext: ../backend
       DockerTag: pipeline
     Properties:
-      Description: Before and after crops (replay season only for now)
+      Description: Before and after crops for the season's top villages
       PackageType: Image
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.render_imagery]
-      MemorySize: 512
-      Timeout: 60
+      MemorySize: 3008
+      Timeout: 900
+      # The before and after Sentinel-2 dates of up to 20 villages, pulled from the cache.
+      EphemeralStorage:
+        Size: 4096
       Role: !GetAtt PipelineStepRole.Arn
       Environment:
         Variables: *pipeline-env

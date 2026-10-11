@@ -156,7 +156,7 @@ export interface ImageryMeta extends Meta {
   files: { pre_tc: string; post_tc: string; pre_swir: string; post_swir: string }
 }
 
-/** One entry of `imagery/index.json`: a village with before/after crops. */
+/** One entry of `imagery/{season}/index.json`: a village with before/after crops that season. */
 export interface ImageryIndexItem {
   village_id: string
   name: string

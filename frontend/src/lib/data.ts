@@ -71,8 +71,8 @@ async function loadSeason(season: number): Promise<SeasonData> {
     getJson<Items<H3Row>>(`${base}/burns_h3_r8.json`),
     getJson<Items<FirmsPoint>>(`${base}/firms_points.json`),
     getJson<Items<Village>>(`${base}/villages.json`),
-    // Written by `afterpass imagery`; until that has run, no village has crops.
-    getJson<Items<ImageryIndexItem>>('imagery/index.json').catch((error: unknown) => {
+    // Written by `afterpass imagery` for each season; until that has run, no village has crops.
+    getJson<Items<ImageryIndexItem>>(`imagery/${season}/index.json`).catch((error: unknown) => {
       if (error instanceof DataError && error.status === 404) return { items: [] }
       throw error
     }),
@@ -84,10 +84,7 @@ async function loadSeason(season: number): Promise<SeasonData> {
     cells,
     firms,
     villages,
-    // Crops are prepared per season; a village's crops from another season are not this season's.
-    imagery: new Set(
-      imagery.items.filter((item) => item.post_date.startsWith(String(season))).map((item) => item.village_id),
-    ),
+    imagery: new Set(imagery.items.map((item) => item.village_id)),
   }
 }
 
@@ -147,15 +144,26 @@ export function useScars(season: number, districts: string[], week: string | nul
   return result?.status === 'ready' ? result.data : []
 }
 
+/** Where a village's crops for a season live: imagery/{season}/{village_id}/. */
+export function imageryPath(season: number, villageId: string, file: string): string {
+  return `imagery/${season}/${villageId}/${file}`
+}
+
 /**
- * Imagery metadata for a village, or `missing` when no crops were prepared for it.
- * `prepared` comes from the imagery index, so villages without crops are never requested.
+ * Imagery metadata for a village in a season, or `missing` when no crops were prepared for it.
+ * `prepared` comes from the season's imagery index, so villages without crops are never requested.
  */
-export function useImagery(villageId: string | null, prepared: boolean): Loadable<ImageryMeta | 'missing'> | null {
+export function useImagery(
+  season: number,
+  villageId: string | null,
+  prepared: boolean,
+): Loadable<ImageryMeta | 'missing'> | null {
   return useLoad(
-    villageId === null ? null : `imagery:${villageId}:${prepared}`,
+    villageId === null ? null : `imagery:${season}:${villageId}:${prepared}`,
     (): Promise<ImageryMeta | 'missing'> =>
-      prepared ? getJson<ImageryMeta>(`imagery/${villageId}/meta.json`) : Promise.resolve('missing' as const),
+      prepared && villageId !== null
+        ? getJson<ImageryMeta>(imageryPath(season, villageId, 'meta.json'))
+        : Promise.resolve('missing' as const),
   )
 }
 

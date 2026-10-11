@@ -173,13 +173,38 @@ def smoke_forecast(event: dict, _context: object) -> dict:
 
 
 def render_imagery(event: dict, _context: object) -> dict:
-    """Before and after crops are prepared for the replay season only, for now.
+    """Before and after crops for the season's top villages, under imagery/{season}/.
 
-    Crops are stored by village, not by season, so rendering the live season's here would
-    replace the replay's crops for any village in both. The step is kept in the pipeline so the
-    state machine matches the brief; it reports that it did nothing.
+    Only the Sentinel-2 dates the crops are drawn from are pulled from the cache; the burn
+    detection step pushed every date it used.
     """
-    return {"rendered": 0, "skipped": "imagery is prepared for the replay season only"}
+    from afterpass import imagery, pipeline, places, workdir
+    from afterpass import publish as publisher
+
+    season = _season()
+    names = _districts(event)
+    workdir.pull([*REFERENCE, f"replay/{season}"], log.info)
+    replays = [pipeline.load_replay(name, season) for name in names]
+    needed = imagery.needed_scenes(imagery.pick_crops(replays, imagery.TOP_VILLAGES))
+    workdir.pull(
+        [f"s2/{slug}/{day.isoformat()}.tif" for slug, days in needed.items() for day in days],
+        log.info,
+    )
+    _, release = places.load_localities()
+    meta = publisher.metadata(replays, release)
+    records = imagery.render_season(season, replays, imagery.TOP_VILLAGES, meta, log=log.info)
+    publisher.write_imagery_index(meta, season)  # inside the season folder
+    folder = imagery.season_dir(season)
+    sent = workdir.push_public(p for p in folder.rglob("*") if p.is_file())
+    # Folders of villages that left the top list are removed from the bucket too.
+    keep = {record["village_id"] for record in records}
+    bucket = boto3.resource("s3").Bucket(workdir.bucket_name())
+    prefix = f"public/imagery/{season}/"
+    for obj in bucket.objects.filter(Prefix=prefix):
+        village_id, _, rest = obj.key.removeprefix(prefix).partition("/")
+        if rest and village_id not in keep:
+            obj.delete()
+    return {"season": season, "rendered": len(records), "files_published": sent}
 
 
 def publish(event: dict, _context: object) -> dict:
@@ -189,7 +214,10 @@ def publish(event: dict, _context: object) -> dict:
     cloudfront.create_invalidation(
         DistributionId=os.environ["DISTRIBUTION_ID"],
         InvalidationBatch={
-            "Paths": {"Quantity": 3, "Items": ["/latest.json", "/smoke/index.json", "/seasons/*"]},
+            "Paths": {
+                "Quantity": 4,
+                "Items": ["/latest.json", "/smoke/index.json", "/seasons/*", "/imagery/*"],
+            },
             "CallerReference": f"pipeline-{stamp}",
         },
     )

@@ -185,7 +185,9 @@ def top_unrecorded_villages(
     if week is not None and not re.fullmatch(r"\d{4}-W\d{2}", week):
         return _error("Give the week as an ISO week such as 2025-W45.")
     try:
-        imagery = {item["village_id"] for item in data.load("imagery/index.json")["items"]}
+        imagery = {
+            item["village_id"] for item in data.load(f"imagery/{season}/index.json")["items"]
+        }
     except data.DataError:
         imagery = set()
 

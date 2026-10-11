@@ -118,7 +118,7 @@ def public(tmp_path, monkeypatch):
             ]
         },
     )
-    _write(tmp_path, "imagery/index.json", {"items": [{"village_id": "b-beta"}]})
+    _write(tmp_path, "imagery/2025/index.json", {"items": [{"village_id": "b-beta"}]})
     run = {
         "run_id": "2025-11-06",
         "kind": "replay",

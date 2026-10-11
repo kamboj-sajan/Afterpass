@@ -4,7 +4,7 @@ import { ReactCompareSlider, useReactCompareSliderContext } from 'react-compare-
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/cn'
 import { css, EMBER_CORE } from '@/lib/colors'
-import { dataUrl, useImagery, useScars } from '@/lib/data'
+import { dataUrl, imageryPath, useImagery, useScars } from '@/lib/data'
 import { formatDate, formatHectares } from '@/lib/format'
 import { useExplorer } from '@/lib/store'
 import { isoWeekOf } from '@/lib/time'
@@ -101,7 +101,7 @@ export const ImageryDrawer = memo(function ImageryDrawer(props: { data: SeasonDa
   const [mode, setMode] = useState<Mode>('tc')
   const [outlines, setOutlines] = useState(true)
 
-  const imagery = useImagery(villageId, villageId !== null && props.data.imagery.has(villageId))
+  const imagery = useImagery(season, villageId, villageId !== null && props.data.imagery.has(villageId))
   const meta = imagery?.status === 'ready' && imagery.data !== 'missing' ? imagery.data : null
   const village = props.data.villages.items.find((v) => v.id === villageId) ?? null
   const scars = useScars(
@@ -128,7 +128,7 @@ export const ImageryDrawer = memo(function ImageryDrawer(props: { data: SeasonDa
   })
   const file = (key: 'pre' | 'post') => {
     if (meta === null) return ''
-    return dataUrl(`imagery/${meta.village_id}/${meta.files[`${key}_${mode}`]}`)
+    return dataUrl(imageryPath(season, meta.village_id, meta.files[`${key}_${mode}`]))
   }
 
   return (
