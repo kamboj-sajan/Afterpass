@@ -87,7 +87,9 @@ flowchart LR
 The pipeline's state machine is in
 [infra/statemachine/pipeline.asl.json](infra/statemachine/pipeline.asl.json) and the stack in
 [infra/template.yaml](infra/template.yaml). Every pipeline function runs from one container
-image built from [backend/Dockerfile](backend/Dockerfile).
+image built from [backend/Dockerfile](backend/Dockerfile). The image is built inside AWS by
+CodeBuild ([infra/build.yaml](infra/build.yaml)), so deploying does not depend on pushing a
+large image over a home connection.
 
 ### How AWS is used
 
@@ -99,7 +101,7 @@ image built from [backend/Dockerfile](backend/Dockerfile).
 | Data and alerts | DynamoDB, SNS | Daily district statistics and the assistant's rate limit; Delhi smoke alerts by email, filtered by zone |
 | AI | Amazon Bedrock via **Strands Agents** | The bilingual assistant. It runs on `openai.gpt-oss-120b`, because the account has no Claude quota; the code switches to a Claude model with one setting (`AGENT_MODEL`) |
 | Maps and hosting | Amazon Location Service, Amplify Hosting | Dark basemap with India's political view; the web app |
-| Operations | CloudWatch, CloudFormation (SAM) | Logs with 14-day retention, an alarm on pipeline failures, one template for the whole stack |
+| Operations | CloudWatch, CloudFormation (SAM), CodeBuild, ECR | Logs with 14-day retention, an alarm on pipeline failures, one template for the stack, the pipeline image built and stored in AWS |
 
 ### Status
 
@@ -108,7 +110,8 @@ image built from [backend/Dockerfile](backend/Dockerfile).
 | Web app on Amplify, data on S3 and CloudFront | Live |
 | Assistant on Lambda | Live; 10 of 10 scripted questions grounded ([transcript](backend/agent/tests/transcript.md)) |
 | 2025 replay and the 2026 season so far | Published |
-| Daily pipeline, alerts, "Notify me" | Template and image validated; deploy with `make deploy` |
+| Daily pipeline on Step Functions | Deployed; a full run on 12 Oct 2026 finished in 5 min 51 s and published the 2026 season so far. The two daily schedules are created switched off (`make schedule-on`) |
+| Alerts and "Notify me" | Deployed; an email goes out when a Delhi zone's forecast reaches High, which has not happened yet this season |
 
 ## Run it locally
 
@@ -135,8 +138,9 @@ On AWS, with credentials for the account and `ALERT_EMAIL` set in `.env` (where 
 failure emails go). `make deploy` asks before it creates anything:
 
 ```bash
+make image                 # build the pipeline image in AWS with CodeBuild (about $0.05)
 make deploy                # the SAM stack in ap-southeast-2
-make pipeline-run          # one full pipeline run (about $0.30)
+make pipeline-run          # one full pipeline run (a few cents)
 make schedule-on           # the daily runs at 19:12 and 07:12 IST
 make deploy-web            # build the app against the stack and upload to Amplify
 make destroy               # delete the stack (the data bucket is kept)

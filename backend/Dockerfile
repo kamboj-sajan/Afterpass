@@ -2,6 +2,9 @@
 # command. Built for arm64. Dependencies are installed at the versions in uv.lock.
 FROM public.ecr.aws/lambda/python:3.12
 
+# rasterio's wheel loads libexpat from the system, and the Lambda base image does not ship it.
+RUN dnf install -y expat && dnf clean all
+
 RUN pip install --no-cache-dir uv==0.12.24
 
 WORKDIR /build
@@ -15,6 +18,9 @@ RUN uv pip install --system --no-cache --no-deps . && rm -rf /build
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 COPY lambdas/pipeline.py ./pipeline.py
+
+# Fail the build, not a run, when a module the handlers use cannot be imported.
+RUN python -c "import pipeline; from afterpass import alerts, firms, imagery, outlook, pipeline, places, publish, sentinel, smoke, workdir"
 
 # /tmp is the only writable place on Lambda.
 ENV AFTERPASS_DATA_DIR=/tmp/afterpass \

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import json
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 import boto3
@@ -66,6 +68,38 @@ def upload_file(client, bucket: str, path: Path, name: str, known: bool = True) 
         extra["ContentEncoding"] = "gzip"
     client.put_object(Bucket=bucket, Key=key, Body=body, **extra)
     return 1
+
+
+def is_ahead(remote: dict | None, local: dict | None) -> bool:
+    """Whether one `latest.json` describes a later run than another."""
+    if remote is None or "generated_at" not in remote:
+        return False
+    if local is None or "generated_at" not in local:
+        return True
+    return datetime.fromisoformat(remote["generated_at"]) > datetime.fromisoformat(
+        local["generated_at"]
+    )
+
+
+def bucket_ahead(bucket: str, root: Path = PUBLIC_DIR) -> tuple[str, str] | None:
+    """The bucket's and the folder's publish times, when the bucket's run is the later one.
+
+    The pipeline on AWS publishes the live season straight to the bucket, so a mirror from a
+    machine that has not run since would replace newer data with older.
+    """
+    client = boto3.client("s3", region_name=settings().aws_region)
+    try:
+        body = client.get_object(Bucket=bucket, Key=f"{PREFIX}/latest.json")["Body"].read()
+    except client.exceptions.NoSuchKey:
+        return None
+    if body[:2] == b"\x1f\x8b":
+        body = gzip.decompress(body)
+    remote = json.loads(body)
+    path = root / "latest.json"
+    local = json.loads(path.read_text()) if path.exists() else None
+    if not is_ahead(remote, local):
+        return None
+    return remote["generated_at"], (local or {}).get("generated_at", "nothing")
 
 
 def upload_public(

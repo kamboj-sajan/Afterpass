@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery imagery-migrate qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web pipeline-run schedule-on schedule-off destroy seed-cache
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery imagery-migrate qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web pipeline-run schedule-on schedule-off destroy seed-cache image
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -86,14 +86,18 @@ deploy: ## Deploy the AWS stack to ap-southeast-2 (asks first; costs money)
 	@echo "This creates or updates AWS resources in $(REGION) and can cost money."
 	@read -p "Type 'deploy' to continue: " ans && [ "$$ans" = "deploy" ] || (echo "Aborted."; exit 1)
 	@test -n "$(ALERT_EMAIL)" || (echo "Set ALERT_EMAIL in .env first."; exit 1)
-	cd infra && sam validate --lint && sam build && sam deploy --parameter-overrides AlertEmail=$(ALERT_EMAIL)
+	cd infra && sam validate --lint && sam build && sam deploy \
+		--parameter-overrides AlertEmail=$(ALERT_EMAIL) PipelineImage=$$(cd ../backend && uv run afterpass image-uri)
 
-pipeline-run: ## Start one full run of the live pipeline on AWS (about $0.30)
+image: ## Build the pipeline's container image in AWS with CodeBuild (about $0.05; run before deploy when backend code changes)
+	$(UV) afterpass build-image
+
+pipeline-run: ## Start one full run of the live pipeline on AWS (about $0.02 on 12 Oct 2026; more as the season adds imagery)
 	aws stepfunctions start-execution --region $(REGION) --input '{"mode": "full"}' \
 		--state-machine-arn $$(aws cloudformation describe-stacks --region $(REGION) --stack-name afterpass \
 			--query "Stacks[0].Outputs[?OutputKey=='PipelineArn'].OutputValue" --output text)
 
-schedule-on: ## Switch on the daily 19:12 and 07:12 IST runs (costs about $0.30 a day)
+schedule-on: ## Switch on the daily 19:12 and 07:12 IST runs (a few cents a day)
 	$(UV) afterpass schedules --state on
 
 schedule-off: ## Switch the daily runs off

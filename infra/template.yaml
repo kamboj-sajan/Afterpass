@@ -5,6 +5,9 @@ Description: >-
   and the live pipeline. Everything is on demand; nothing runs when nobody is using it.
 
 Parameters:
+  PipelineImage:
+    Type: String
+    Description: The pipeline image, by digest, as `make image` builds it (infra/build.yaml).
   AlertEmail:
     Type: String
     Description: Where pipeline failure emails go (passed at deploy time; not kept in the repository).
@@ -328,13 +331,10 @@ Resources:
 
   FetchFirmsFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Download the season's official fire detections
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.fetch_firms]
@@ -358,13 +358,10 @@ Resources:
 
   FindScenesFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: List the Sentinel-2 dates each district needs
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.find_scenes]
@@ -382,17 +379,15 @@ Resources:
 
   DetectBurnsFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Cache scenes, detect and match burn scars for one district
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.detect_burns]
-      MemorySize: 8192
+      # The account's ceiling for one function; the brief asks for 8-10 GB.
+      MemorySize: 3008
       Timeout: 900
       EphemeralStorage:
         Size: 4096
@@ -408,13 +403,10 @@ Resources:
 
   MatchAggregateFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Aggregate scars and publish the season's files
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.match_aggregate]
@@ -432,13 +424,10 @@ Resources:
 
   SmokeForecastFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: The 48-hour smoke forecast for Delhi
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.smoke_forecast]
@@ -456,13 +445,10 @@ Resources:
 
   RenderImageryFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Before and after crops for the season's top villages
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.render_imagery]
@@ -483,13 +469,10 @@ Resources:
 
   PublishFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Refresh the published files at the edge
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.publish]
@@ -507,13 +490,10 @@ Resources:
 
   PublishAlertsFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: ../backend
-      DockerTag: pipeline
     Properties:
       Description: Email subscribers when a Delhi zone reaches High
       PackageType: Image
+      ImageUri: !Ref PipelineImage
       Architectures: [arm64]
       ImageConfig:
         Command: [pipeline.publish_alerts]

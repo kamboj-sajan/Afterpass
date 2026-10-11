@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  AfterPass image build. The pipeline's container image is built by CodeBuild, next to ECR,
+  because pushing a 2 GB image from a home connection kept failing. `make image` uploads the
+  backend source and starts a build; `make deploy` then deploys the image it made.
+
+Parameters:
+  DataBucketName:
+    Type: String
+    Description: The data bucket; the source zip is kept under deploy/source/.
+  Repository:
+    Type: String
+    Default: afterpass
+    Description: The ECR repository the image is pushed to.
+
+Resources:
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: build-image
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub ${BuildLogs.Arn}:*
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub arn:aws:s3:::${DataBucketName}/deploy/source/*
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+
+  BuildLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /afterpass/image-build
+      RetentionInDays: 14
+
+  ImageBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: afterpass-image
+      Description: Builds the pipeline's arm64 Lambda image from backend/ and pushes it to ECR
+      ServiceRole: !GetAtt BuildRole.Arn
+      TimeoutInMinutes: 30
+      Source:
+        Type: S3
+        Location: !Sub ${DataBucketName}/deploy/source/backend.zip
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+            build:
+              commands:
+                # A plain image manifest: Lambda does not accept the attestation index buildx adds.
+                - docker build --provenance=false -t "$REGISTRY/$REPOSITORY:pipeline" .
+            post_build:
+              commands:
+                - docker push "$REGISTRY/$REPOSITORY:pipeline"
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: ARM_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux-aarch64-standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: REGISTRY
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          - Name: REPOSITORY
+            Value: !Ref Repository
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref BuildLogs

@@ -255,3 +255,16 @@ def test_latest_keeps_a_season_published_before_seasons_were_listed(tmp_path, mo
         "mode": "replay",
     }
     assert merged["season"] == 2026
+
+
+def test_bucket_is_ahead_only_when_its_run_is_later():
+    from afterpass import s3
+
+    older = {"generated_at": "2026-10-11T16:30:00+00:00"}
+    newer = {"generated_at": "2026-10-11T19:49:26+00:00"}
+    assert s3.is_ahead(newer, older)
+    assert not s3.is_ahead(older, newer)
+    assert not s3.is_ahead(older, older)
+    # Nothing published yet in the bucket: never ahead. Nothing local: the bucket is ahead.
+    assert not s3.is_ahead(None, older)
+    assert s3.is_ahead(older, None)

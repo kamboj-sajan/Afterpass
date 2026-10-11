@@ -364,6 +364,22 @@ def schedules(state: str = typer.Option(..., help="on or off")) -> None:
         typer.echo(f"{name}: {state} ({current['ScheduleExpression']} Asia/Kolkata)")
 
 
+@app.command("build-image")
+def build_image() -> None:
+    """Build the pipeline's container image in AWS (CodeBuild) and print what to deploy."""
+    from afterpass import imagebuild
+
+    typer.echo(imagebuild.build(log=lambda line: typer.echo(line, err=True)))
+
+
+@app.command("image-uri")
+def image_uri() -> None:
+    """Print the newest built pipeline image, pinned to its digest."""
+    from afterpass import imagebuild
+
+    typer.echo(imagebuild.image_uri())
+
+
 @app.command("deploy-web")
 def deploy_web() -> None:
     """Build the frontend against the deployed stack and upload it to Amplify Hosting."""
@@ -537,7 +553,10 @@ def validate(
 
 @app.command()
 def publish(
-    target: str = "local", season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)
+    target: str = "local",
+    season: int = 2025,
+    districts: str = ",".join(DEMO_DISTRICTS),
+    force: bool = False,
 ) -> None:
     """Rewrite the files in data/public from the cached replay, or upload them to S3."""
     from afterpass import pipeline, places
@@ -547,6 +566,14 @@ def publish(
         from afterpass import s3
 
         bucket = s3.stack_output("DataBucketName")
+        ahead = None if force else s3.bucket_ahead(bucket)
+        if ahead is not None:
+            typer.echo(
+                f"The bucket was published at {ahead[0]}, after this folder ({ahead[1]}): "
+                "the pipeline on AWS has run since. Uploading would replace its data with "
+                "older files. Run `afterpass live` here first, or pass --force."
+            )
+            raise typer.Exit(1)
         result = s3.upload_public(bucket, log=typer.echo)
         typer.echo(
             f"s3://{bucket}/public: {result['uploaded']} uploaded, "
