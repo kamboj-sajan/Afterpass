@@ -126,31 +126,43 @@ if ((await outlook.count()) === 0) {
   await shot('6_delhi_outlook')
 }
 
-// Delhi screen: opens on the season's peak run; the city's figures are checked against its file.
-await page.goto(`${appUrl}/delhi`)
-const delhi = page.getByTestId('delhi-screen')
-await delhi.waitFor({ timeout: 60_000 }).catch(() => undefined)
-if ((await delhi.count()) === 0) {
-  problems.push('The Delhi screen did not open. Has `make smoke` run?')
+// Delhi screen on the season's peak replay run. The screen itself opens on the newest live
+// forecast once there is one, so the run is named in the link; its figures are checked against
+// its file.
+const smokeIndex = await fetch(`${dataUrl}/smoke/index.json`).then(
+  (response) => (response.ok ? response.json() : { runs: [] }),
+  () => ({ runs: [] }),
+)
+const replayRuns = smokeIndex.runs.filter((run) => run.kind === 'replay')
+const peak =
+  replayRuns.length === 0
+    ? null
+    : replayRuns.reduce((best, run) => (run.delhi_mean_peak > best.delhi_mean_peak ? run : best))
+if (peak === null) {
+  problems.push('No replay smoke runs in smoke/index.json. Has `make smoke` run?')
 } else {
-  await pause(3000)
-  const index = await (await fetch(`${dataUrl}/smoke/index.json`)).json()
-  const runs = index.runs.filter((run) => run.kind === 'replay').sort((a, b) => a.start - b.start)
-  const peak = runs.reduce((best, run) => (run.delhi_mean_peak > best.delhi_mean_peak ? run : best))
-  const sai = await (await fetch(`${dataUrl}/smoke/${peak.run_id}/delhi_sai_h3r7.json`)).json()
-  const firstHour = Object.values(sai.cells).map((series) => series[0])
-  const mean = Math.round(firstHour.reduce((total, value) => total + value, 0) / firstHour.length)
-  const high = `${firstHour.filter((value) => value >= 50).length} of ${firstHour.length}`
-  const shownMean = (await page.getByTestId('delhi-mean').innerText()).replace(/\s+/g, ' ')
-  const shownHigh = await page.getByTestId('delhi-high').innerText()
-  console.log(`Delhi screen (${peak.run_id}): ${shownMean} | ${shownHigh} | from the file: ${mean} | ${high}`)
-  if (!shownMean.endsWith(`· ${mean}`)) problems.push(`Delhi average on screen (${shownMean}) is not ${mean}.`)
-  if (shownHigh !== high) problems.push(`Areas at High or above on screen (${shownHigh}) is not ${high}.`)
-  await page.getByRole('radio', { name: '4×' }).click()
-  await page.getByRole('button', { name: 'Play the 48 hours' }).click()
-  await pause(5000)
-  await page.getByRole('button', { name: 'Pause' }).click()
-  await shot('7_delhi_screen')
+  await page.goto(`${appUrl}/delhi?run=${encodeURIComponent(peak.run_id)}`)
+  const delhi = page.getByTestId('delhi-screen')
+  await delhi.waitFor({ timeout: 60_000 }).catch(() => undefined)
+  if ((await delhi.count()) === 0) {
+    problems.push(`The Delhi screen did not open on run ${peak.run_id}.`)
+  } else {
+    await pause(3000)
+    const sai = await (await fetch(`${dataUrl}/smoke/${peak.run_id}/delhi_sai_h3r7.json`)).json()
+    const firstHour = Object.values(sai.cells).map((series) => series[0])
+    const mean = Math.round(firstHour.reduce((total, value) => total + value, 0) / firstHour.length)
+    const high = `${firstHour.filter((value) => value >= 50).length} of ${firstHour.length}`
+    const shownMean = (await page.getByTestId('delhi-mean').innerText()).replace(/\s+/g, ' ')
+    const shownHigh = await page.getByTestId('delhi-high').innerText()
+    console.log(`Delhi screen (${peak.run_id}): ${shownMean} | ${shownHigh} | from the file: ${mean} | ${high}`)
+    if (!shownMean.endsWith(`· ${mean}`)) problems.push(`Delhi average on screen (${shownMean}) is not ${mean}.`)
+    if (shownHigh !== high) problems.push(`Areas at High or above on screen (${shownHigh}) is not ${high}.`)
+    await page.getByRole('radio', { name: '4×' }).click()
+    await page.getByRole('button', { name: 'Play the 48 hours' }).click()
+    await pause(5000)
+    await page.getByRole('button', { name: 'Pause' }).click()
+    await shot('7_delhi_screen')
+  }
 }
 
 // Ask AfterPass: one question through the real agent, if it is running (`make agent`).
