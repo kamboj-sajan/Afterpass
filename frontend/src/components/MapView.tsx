@@ -234,6 +234,16 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
       minZoom={6.5}
       maxPitch={70}
       attributionControl={{ compact: true }}
+      onLoad={(event) => {
+        // A camera move asked for before the map existed (from the assistant on another screen).
+        const asked = useExplorer.getState().camera
+        if (asked === null) return
+        event.target.jumpTo({
+          center: [asked.longitude, asked.latitude],
+          zoom: asked.zoom,
+          padding: panelPadding(),
+        })
+      }}
       onMove={(event) => {
         const next = Math.round(event.viewState.zoom * 10) / 10
         setZoom((current) => (current === next ? current : next))

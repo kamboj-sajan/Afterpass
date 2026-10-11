@@ -28,6 +28,7 @@ export type UiAction =
   | { type: 'show_layer'; id: LayerId }
   | { type: 'open_imagery'; village_id: string }
   | { type: 'play_smoke'; run_id: string; from_hour: number }
+  | { type: 'highlight_locality'; id: string }
 
 interface ExplorerState {
   season: number
@@ -143,6 +144,8 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
         state.showLayer(action.id)
       } else if (action.type === 'play_smoke') {
         state.playSmoke(action.run_id, action.from_hour)
+      } else if (action.type === 'highlight_locality') {
+        state.setSmokeLocality(action.id)
       } else {
         state.openImagery(action.village_id)
       }

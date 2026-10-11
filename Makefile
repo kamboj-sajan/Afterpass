@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 live serve-data web walkthrough build deploy
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough build deploy
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -50,6 +50,12 @@ smoke: ## Run the 2025 smoke replay: one 48-hour run per day, Delhi SAI and trai
 
 pm25: ## Compare the daily Delhi smoke index with observed PM2.5 (needs OPENAQ_API_KEY)
 	$(UV) afterpass pm25 --season 2025
+
+agent: ## Serve the agent locally on :8788 (calls the model; each question costs a little)
+	$(UV) afterpass agent-serve
+
+agent-test: ## Run the 10 scripted questions and save the transcript (calls the model)
+	$(UV) afterpass agent-test
 
 live: ## Process the 2026 season up to today
 	$(UV) afterpass live

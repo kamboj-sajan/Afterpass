@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Finds stubble-fire burn scars missing from official satellite counts, and forecasts where the smoke goes."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "botocore>=1.43.111",
     "dask>=2026.8.0",
     "duckdb>=1.5.6",
     "geopandas>=1.2.0",
@@ -17,11 +18,13 @@ dependencies = [
     "pyproj>=3.8.0",
     "pystac-client>=0.9.0",
     "python-dotenv>=1.2.4",
+    "rapidfuzz>=3.14.6",
     "rasterio>=1.5.2",
     "rioxarray>=0.23.0",
     "scikit-image>=0.26.0",
     "scipy>=1.18.1",
     "shapely>=2.2.0",
+    "strands-agents[openai]>=1.59.0",
     "typer>=0.27.3",
     "xarray>=2026.9.0",
 ]
@@ -34,7 +37,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["afterpass"]
+packages = ["afterpass", "agent"]
 
 [tool.ruff]
 line-length = 100

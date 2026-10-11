@@ -6,7 +6,8 @@
  * WebGL here is far slower than a GPU: check the smoke frame rate in a browser with /map?fps=1.
  *
  * Needs both local servers: `make serve-data` and `make web`.
- * Usage: node scripts/walkthrough.mjs [appUrl] [dataUrl]
+ * The Ask AfterPass step also needs `make agent`; without it that step is skipped and says so.
+ * Usage: node scripts/walkthrough.mjs [appUrl] [dataUrl] [agentUrl]
  */
 import { mkdirSync, renameSync, rmSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -143,6 +144,34 @@ if ((await delhi.count()) === 0) {
   await pause(5000)
   await page.getByRole('button', { name: 'Pause' }).click()
   await shot('7_delhi_screen')
+}
+
+// Ask AfterPass: one question through the real agent, if it is running (`make agent`).
+const agentUrl = process.argv[4] ?? 'http://127.0.0.1:8788'
+const agentUp = await fetch(`${agentUrl}/ask`, { method: 'OPTIONS' }).then(
+  () => true,
+  () => false,
+)
+if (!agentUp) {
+  console.log('Ask AfterPass: SKIPPED, the agent is not running (start it with `make agent`).')
+} else {
+  await page.goto(`${appUrl}/map`)
+  await page.getByTestId('ask-button').click({ timeout: 60_000 })
+  await page.getByRole('button', { name: /^संगरूर के किन गाँवों/ }).click()
+  await page.getByTestId('chat-answer').waitFor({ timeout: 90_000 })
+  await pause(4000)
+  const season = (await (await fetch(`${dataUrl}/latest.json`)).json()).season
+  const villages = (await (await fetch(`${dataUrl}/seasons/${season}/villages.json`)).json()).items
+  const top = villages
+    .filter((village) => village.district === 'Sangrur')
+    .reduce((best, village) => (village.unrecorded_ha > best.unrecorded_ha ? village : best))
+  const answer = await page.getByTestId('chat-answer').innerText()
+  console.log(`Ask AfterPass: top Sangrur village in the file is ${top.name}, ${top.unrecorded_ha} ha`)
+  if (!answer.includes(top.name)) problems.push(`The agent's answer does not name ${top.name}.`)
+  if (!answer.includes(String(top.unrecorded_ha))) {
+    problems.push(`The agent's answer does not give ${top.unrecorded_ha} ha for ${top.name}.`)
+  }
+  await shot('8_ask_afterpass')
 }
 
 await context.close()

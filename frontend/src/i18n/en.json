@@ -214,5 +214,31 @@
     "play": "Play the 48 hours",
     "scrub": "Time in the 48 hours",
     "peakBand": "Peak window for the chosen locality"
+  },
+  "chat": {
+    "title": "Ask AfterPass",
+    "open": "Ask AfterPass",
+    "close": "Close the assistant",
+    "intro": "Answers come only from the published data: burn scars, official detections and the smoke model. The assistant can also move the map.",
+    "suggestions": "Try asking",
+    "placeholder": "Ask about burning or smoke, in English or हिंदी",
+    "send": "Send",
+    "thinking": "Looking at the data…",
+    "moved": "AfterPass moved the map",
+    "unverified": "Some figures in this answer could not be checked against the data. Treat them with care.",
+    "unreachable": "The assistant cannot be reached. When running locally, start it with: make agent",
+    "failed": "The assistant could not answer. Please try again.",
+    "toolsUsed": "What was looked up",
+    "toolFailed": "no result",
+    "voice": "Speak your question",
+    "listening": "Listening…",
+    "tool": {
+      "season_overview": "Season totals",
+      "top_unrecorded_villages": "Ranked villages",
+      "district_trend": "Weekly trend",
+      "official_detection_times": "Official detection times",
+      "smoke_outlook": "Smoke outlook",
+      "method_and_limits": "Method"
+    }
   }
 }

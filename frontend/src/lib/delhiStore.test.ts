@@ -20,7 +20,7 @@ const RUN: SmokeRunSummary = {
 
 describe('Delhi screen state', () => {
   beforeEach(() => {
-    useDelhi.setState({ window: null, clockMs: 0, playing: false })
+    useDelhi.setState({ window: null, clockMs: 0, playing: false, request: null, wantedRunId: null })
   })
 
   it('opens a run at its first hour, paused', () => {
@@ -46,6 +46,18 @@ describe('Delhi screen state', () => {
     useDelhi.getState().setPlaying(true)
     expect(useDelhi.getState().clockMs).toBe(START)
     expect(useDelhi.getState().playing).toBe(true)
+  })
+
+  it('starts a run the assistant asked for once it is on screen', () => {
+    useDelhi.getState().requestRun('2025-11-06', 26)
+    expect(useDelhi.getState().wantedRunId).toBe('2025-11-06')
+    expect(useDelhi.getState().playing).toBe(false)
+    useDelhi.getState().openRun(RUN)
+    useDelhi.getState().startRequested()
+    const state = useDelhi.getState()
+    expect(state.clockMs).toBe(START + 26 * HOUR_MS)
+    expect(state.playing).toBe(true)
+    expect(state.request).toBeNull()
   })
 
   it('ignores the clock until a run is open', () => {

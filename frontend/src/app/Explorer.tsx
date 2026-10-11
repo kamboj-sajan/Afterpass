@@ -2,6 +2,7 @@ import { Wind } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Banners } from '@/components/Banners'
+import { AskButton, ChatDrawer } from '@/components/ChatDrawer'
 import { CommandPalette } from '@/components/CommandPalette'
 import { DelhiOutlook } from '@/components/DelhiOutlook'
 import { FpsMeter, showFps } from '@/components/FpsMeter'
@@ -149,11 +150,15 @@ export function Explorer() {
         <div className="pointer-events-auto col-start-3 row-span-2 row-start-1 flex min-h-0 flex-col [&>section]:max-h-full">
           <GroundTruthPanel data={data} />
         </div>
-        <div className="pointer-events-auto col-start-2 row-start-2">
-          <Timeline />
+        <div className="pointer-events-auto col-start-2 row-start-2 flex items-stretch gap-(--edge)">
+          <div className="min-w-0 flex-1">
+            <Timeline />
+          </div>
+          <AskButton />
         </div>
       </div>
       <CommandPalette data={data} localities={smoke.run?.localities ?? []} />
+      <ChatDrawer screen="map" />
       {showFps && <FpsMeter />}
     </div>
   )

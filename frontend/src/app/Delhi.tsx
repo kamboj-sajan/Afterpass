@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
+import { AskButton, ChatDrawer } from '@/components/ChatDrawer'
 import { DelhiMap } from '@/components/DelhiMap'
 import { DelhiPanel } from '@/components/DelhiPanel'
 import { DelhiTimeline } from '@/components/DelhiTimeline'
@@ -94,7 +95,7 @@ export function Delhi() {
     [index],
   )
   // The run asked for; the one on screen changes only once it has loaded.
-  const [wantedId, setWantedId] = useState<string | null>(null)
+  const wantedId = useDelhi((s) => s.wantedRunId)
   const chosenId = wantedId ?? runs.find((r) => r.run_id === params.get('run'))?.run_id ?? peakRun(runs)?.run_id ?? null
   const wanted = runs.find((r) => r.run_id === chosenId) ?? null
   const run = useSmokeRun(wanted)
@@ -105,6 +106,8 @@ export function Delhi() {
     if (run !== null && useDelhi.getState().window?.runId !== run.summary.run_id) {
       useDelhi.getState().openRun(run.summary)
     }
+    // A run the assistant asked for starts playing as soon as it is on screen.
+    useDelhi.getState().startRequested()
   }, [run])
 
   // A place named in the link is shown first.
@@ -139,15 +142,24 @@ export function Delhi() {
       {/* Panels float over the map; the wrapper ignores the pointer so the map stays draggable. */}
       <div className="pointer-events-none absolute inset-0 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-(--edge) p-(--edge)">
         <div className="pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full">
-          <DelhiPanel run={run} runs={runs} locality={locality} onOpen={(next) => setWantedId(next.run_id)} />
+          <DelhiPanel
+            run={run}
+            runs={runs}
+            locality={locality}
+            onOpen={(next) => useDelhi.getState().wantRun(next.run_id)}
+          />
         </div>
         <div className="flex items-start justify-end">
           <Legend />
         </div>
-        <div className="pointer-events-auto">
-          <DelhiTimeline peak={peak} />
+        <div className="pointer-events-auto flex items-stretch gap-(--edge)">
+          <div className="min-w-0 flex-1">
+            <DelhiTimeline peak={peak} />
+          </div>
+          <AskButton />
         </div>
       </div>
+      <ChatDrawer screen="delhi" />
       {showFps && <FpsMeter />}
     </div>
   )

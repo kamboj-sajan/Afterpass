@@ -296,6 +296,50 @@ def pm25(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
     typer.echo(f"Wrote {report_path}, {chart} and the public validation file")
 
 
+def _agent_env() -> None:
+    """Settings from `.env` (AWS region, AGENT_MODEL) for the agent, which reads the environment."""
+    import logging
+
+    from dotenv import load_dotenv
+
+    from afterpass.config import REPO_ROOT
+
+    load_dotenv(REPO_ROOT / ".env")
+    logging.basicConfig(level=logging.WARNING, format="%(message)s")
+    logging.getLogger("afterpass.agent").setLevel(logging.INFO)
+    # Strands warns on every turn that the model's reasoning is not sent back to it.
+    logging.getLogger("strands").setLevel(logging.ERROR)
+
+
+@app.command("agent-ask")
+def agent_ask(question: str) -> None:
+    """Ask the agent one question and print its reply with the tools it used."""
+    _agent_env()
+    from agent import handler
+
+    typer.echo(json.dumps(handler.ask(question), ensure_ascii=False, indent=2))
+
+
+@app.command("agent-serve")
+def agent_serve(port: int = 8788) -> None:
+    """Serve the agent locally (POST /ask), standing in for its Lambda Function URL."""
+    _agent_env()
+    from agent import server
+
+    server.serve(port)
+
+
+@app.command("agent-test")
+def agent_test() -> None:
+    """Run the scripted questions and save the transcript (brief §10.6)."""
+    _agent_env()
+    from agent import transcript
+
+    path, summary = transcript.run(log=typer.echo)
+    typer.echo(json.dumps(summary, indent=2))
+    typer.echo(f"Wrote {path}")
+
+
 def _load_season(season: int, districts: str):
     """Cached replays plus the scenes and STAC items behind them, for imagery and QA."""
     from afterpass import pipeline
