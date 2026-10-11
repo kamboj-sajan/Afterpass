@@ -214,3 +214,85 @@ def publish_local(replays: list[Replay], season: int, overture_release: str) -> 
             _write(PUBLIC_DIR / "validation" / f"{season}.json", report | meta, pretty=True)
         )
     return written
+
+
+# --- Smoke (brief §8.5, §9.2) --------------------------------------------------------------
+
+SMOKE_DIR = PUBLIC_DIR / "smoke"
+
+
+def smoke_metadata(model: dict, overture_release: str, sources: str) -> dict:
+    """The provenance block of every smoke file. `model` is smoke.params_record output."""
+    return {
+        "generated_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "source_versions": {
+            "afterpass": version("afterpass"),
+            "winds": model["winds"],
+            "winds_attribution": "Weather data by Open-Meteo.com (CC BY 4.0)",
+            "burn_sources": sources,
+            "overture": overture_release,
+            "smoke_model": model,
+        },
+        "demo": False,
+    }
+
+
+def write_smoke_trips(run_id: str, start: float, trips: list[dict], meta: dict) -> Path:
+    """smoke/{run_id}/trips.json: [{path, ts, w}] as `items`."""
+    model = meta["source_versions"]["smoke_model"]
+    return _write(
+        SMOKE_DIR / run_id / "trips.json",
+        {
+            **meta,
+            "run_id": run_id,
+            "start": int(start),
+            "hours": model["run_hours"],
+            "tau_h": model["tau_h"],
+            "items": trips,
+        },
+    )
+
+
+def write_smoke_run(
+    run_id: str,
+    kind: str,
+    hours: list[int],
+    cells: list[str],
+    sai: list[list[int]],
+    localities: list[dict],
+    normaliser: dict,
+    meta: dict,
+) -> list[Path]:
+    """smoke/{run_id}/delhi_sai_h3r7.json and localities.json.
+
+    `sai` is hours x cells of the normalised index (0-100).
+    """
+    by_cell = {cell: [row[i] for row in sai] for i, cell in enumerate(cells)}
+    common = {**meta, "run_id": run_id, "kind": kind, "hours": hours, "normaliser": normaliser}
+    return [
+        _write(SMOKE_DIR / run_id / "delhi_sai_h3r7.json", {**common, "cells": by_cell}),
+        _write(SMOKE_DIR / run_id / "localities.json", {**common, "items": localities}),
+    ]
+
+
+def clear_smoke_runs(keep: set[str], pattern: str) -> None:
+    """Remove run folders matching `pattern` that are not in `keep` (e.g. an older replay)."""
+    if not SMOKE_DIR.exists():
+        return
+    for folder in SMOKE_DIR.glob(pattern):
+        if folder.is_dir() and folder.name not in keep:
+            shutil.rmtree(folder)
+
+
+def write_smoke_index(runs: list[dict], meta: dict) -> Path:
+    """smoke/index.json: every published run, newest last. Runs of other kinds are kept."""
+    path = SMOKE_DIR / "index.json"
+    previous = json.loads(path.read_text())["runs"] if path.exists() else []
+    replaced = {run["run_id"] for run in runs}
+    kept = [
+        run
+        for run in previous
+        if run["run_id"] not in replaced and (SMOKE_DIR / run["run_id"]).is_dir()
+    ]
+    merged = sorted(kept + runs, key=lambda run: run["start"])
+    return _write(path, {**meta, "runs": merged}, pretty=True)
