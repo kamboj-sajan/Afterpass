@@ -35,7 +35,7 @@ So AfterPass:
 
 For Sangrur, Bathinda and Firozpur, 1 October to 30 November 2025:
 
-- **423,996 hectares burned**, and **303,189 hectares (71%) had no matching official
+- **423,996 hectares burned**, and **303,189 hectares (71.5%) had no matching official
   detection.**
 - Of 4,377 official detections, **4,330 (98.9%) were made between noon and 4 PM**, around the
   afternoon pass. Our own data shows the blind spot.

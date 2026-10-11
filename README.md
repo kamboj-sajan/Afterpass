@@ -89,7 +89,8 @@ The pipeline's state machine is in
 [infra/template.yaml](infra/template.yaml). Every pipeline function runs from one container
 image built from [backend/Dockerfile](backend/Dockerfile). The image is built inside AWS by
 CodeBuild ([infra/build.yaml](infra/build.yaml)), so deploying does not depend on pushing a
-large image over a home connection.
+large image over a home connection. [docs/architecture.md](docs/architecture.md) describes
+each step, the published files and the limits of the account.
 
 ### How AWS is used
 
@@ -101,7 +102,7 @@ large image over a home connection.
 | Data and alerts | DynamoDB, SNS | Daily district statistics and the assistant's rate limit; Delhi smoke alerts by email, filtered by zone |
 | AI | Amazon Bedrock via **Strands Agents** | The bilingual assistant. It runs on `openai.gpt-oss-120b`, because the account has no Claude quota; the code switches to a Claude model with one setting (`AGENT_MODEL`) |
 | Maps and hosting | Amazon Location Service, Amplify Hosting | Dark basemap with India's political view; the web app |
-| Operations | CloudWatch, CloudFormation (SAM), CodeBuild, ECR | Logs with 14-day retention, an alarm on pipeline failures, one template for the stack, the pipeline image built and stored in AWS |
+| Operations | CloudWatch, SSM Parameter Store, CloudFormation (SAM), CodeBuild, ECR | Logs with 14-day retention, an alarm on pipeline failures, the FIRMS key as an encrypted parameter, one template for the stack, the pipeline image built and stored in AWS |
 
 ### Status
 
@@ -153,8 +154,8 @@ backend/afterpass/   detection, matching, aggregation, smoke model, publishing, 
 backend/agent/       the assistant: tools, prompt, grounding check, Lambda handler
 backend/lambdas/     thin pipeline and subscribe handlers
 frontend/            React app: hero globe, Explorer map, Delhi screen, Method page, story
-infra/               SAM template and the Step Functions definition
-docs/                METHOD.md, DEMO_SCRIPT.md, BLOG_DRAFT.md
+infra/               SAM template, the Step Functions definition, the image build
+docs/                METHOD.md, architecture.md, DEMO_SCRIPT.md, BLOG_DRAFT.md
 validation/          calibration, PM2.5 comparison and QA sample for each season
 reports/             screenshots, calibration plot, quick-looks
 ```
