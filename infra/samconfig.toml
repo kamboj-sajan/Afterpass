@@ -12,3 +12,5 @@ fail_on_empty_changeset = false
 # Lambda code is uploaded to the data bucket, outside the public prefix.
 s3_bucket = "afterpass-databucket-5n5eijkr5edu"
 s3_prefix = "deploy"
+# All pipeline functions share one image, so they share one repository.
+image_repository = "948127566033.dkr.ecr.ap-southeast-2.amazonaws.com/afterpass"

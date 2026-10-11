@@ -323,6 +323,47 @@ def pm25(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
     typer.echo(f"Wrote {report_path}, {chart} and the public validation file")
 
 
+@app.command("seed-cache")
+def seed_cache() -> None:
+    """Upload the small reference files the pipeline needs on AWS (boundaries, places, masks)."""
+    from afterpass import workdir
+
+    sent = workdir.push(
+        [
+            "boundaries/districts_pb_hr_dl.geojson",
+            "overture",
+            "worldcover",
+            "smoke",
+            "replay/2025",
+        ],
+        log=typer.echo,
+    )
+    typer.echo(f"Seeded {sent} files into s3://{workdir.bucket_name()}/cache/")
+
+
+@app.command()
+def schedules(state: str = typer.Option(..., help="on or off")) -> None:
+    """Switch the daily pipeline runs on or off (they are created switched off)."""
+    import boto3
+
+    from afterpass.config import settings
+
+    if state not in ("on", "off"):
+        typer.echo("Use --state on or --state off.")
+        raise typer.Exit(1)
+    client = boto3.client("scheduler", region_name=settings().aws_region)
+    for name in ("afterpass-full-run", "afterpass-smoke-refresh"):
+        current = client.get_schedule(Name=name)
+        keep = ("ScheduleExpression", "ScheduleExpressionTimezone", "FlexibleTimeWindow", "Target")
+        client.update_schedule(
+            Name=name,
+            State="ENABLED" if state == "on" else "DISABLED",
+            Description=current.get("Description", ""),
+            **{key: current[key] for key in keep},
+        )
+        typer.echo(f"{name}: {state} ({current['ScheduleExpression']} Asia/Kolkata)")
+
+
 @app.command("deploy-web")
 def deploy_web() -> None:
     """Build the frontend against the deployed stack and upload it to Amplify Hosting."""
@@ -478,9 +519,8 @@ def publish(
         bucket = s3.stack_output("DataBucketName")
         result = s3.upload_public(bucket, log=typer.echo)
         typer.echo(
-            f"s3://{bucket}/public: {result['uploaded']} uploaded "
-            f"({result['bytes'] / 1e6:.1f} MB), {result['unchanged']} unchanged, "
-            f"{result['removed']} removed"
+            f"s3://{bucket}/public: {result['uploaded']} uploaded, "
+            f"{result['unchanged']} unchanged, {result['removed']} removed"
         )
         return
     if target != "local":

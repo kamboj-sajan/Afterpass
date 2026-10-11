@@ -1,0 +1,119 @@
+{
+  "Comment": "AfterPass live pipeline (brief 11.3). Input: {\"mode\": \"full\"} or {\"mode\": \"smoke\"}.",
+  "StartAt": "WhichRun",
+  "States": {
+    "WhichRun": {
+      "Type": "Choice",
+      "Choices": [{ "Variable": "$.mode", "StringEquals": "smoke", "Next": "SmokeOnly" }],
+      "Default": "FetchFirms"
+    },
+    "FetchFirms": {
+      "Type": "Task",
+      "Resource": "${FetchFirmsArn}",
+      "ResultPath": "$.firms",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 20, "BackoffRate": 2, "MaxAttempts": 3 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "FindScenes"
+    },
+    "FindScenes": {
+      "Type": "Task",
+      "Resource": "${FindScenesArn}",
+      "ResultPath": "$.scenes",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 20, "BackoffRate": 2, "MaxAttempts": 3 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "DetectBurns"
+    },
+    "DetectBurns": {
+      "Type": "Map",
+      "ItemsPath": "$.scenes.districts",
+      "MaxConcurrency": 3,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "DetectDistrict",
+        "States": {
+          "DetectDistrict": {
+            "Type": "Task",
+            "Resource": "${DetectBurnsArn}",
+            "Retry": [
+              { "ErrorEquals": ["States.ALL"], "IntervalSeconds": 30, "BackoffRate": 2, "MaxAttempts": 2 }
+            ],
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.detected",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "MatchAggregate"
+    },
+    "MatchAggregate": {
+      "Type": "Task",
+      "Resource": "${MatchAggregateArn}",
+      "ResultPath": "$.aggregated",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 20, "BackoffRate": 2, "MaxAttempts": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "SmokeAndImagery"
+    },
+    "SmokeAndImagery": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "SmokeForecast",
+          "States": {
+            "SmokeForecast": {
+              "Type": "Task",
+              "Resource": "${SmokeForecastArn}",
+              "Retry": [
+                { "ErrorEquals": ["States.ALL"], "IntervalSeconds": 30, "BackoffRate": 2, "MaxAttempts": 2 }
+              ],
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "RenderImagery",
+          "States": {
+            "RenderImagery": { "Type": "Task", "Resource": "${RenderImageryArn}", "End": true }
+          }
+        }
+      ],
+      "ResultPath": "$.outputs",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "Publish"
+    },
+    "SmokeOnly": {
+      "Type": "Task",
+      "Resource": "${SmokeForecastArn}",
+      "ResultPath": "$.outputs",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 30, "BackoffRate": 2, "MaxAttempts": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "Publish"
+    },
+    "Publish": {
+      "Type": "Task",
+      "Resource": "${PublishArn}",
+      "ResultPath": "$.published",
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 10, "BackoffRate": 2, "MaxAttempts": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "Next": "Notify"
+    },
+    "Notify": {
+      "Type": "Task",
+      "Resource": "${PublishAlertsArn}",
+      "ResultPath": "$.alerts",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "TellMe" }],
+      "End": true
+    },
+    "TellMe": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${FailureTopicArn}",
+        "Subject": "AfterPass pipeline failed",
+        "Message.$": "States.JsonToString($.error)"
+      },
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Failed": { "Type": "Fail", "Error": "PipelineFailed" }
+  }
+}

@@ -394,5 +394,18 @@
       "note": "Modelled smoke from the mapped districts, from {{date}}. A relative index, not PM2.5."
     },
     "noRun": "No smoke run is published yet."
+  },
+  "notify": {
+    "heading": "Notify me",
+    "intro": "Get an email when the forecast for your part of Delhi reaches High.",
+    "email": "Email address",
+    "zone": "Part of Delhi",
+    "submit": "Send me alerts",
+    "sending": "Sending…",
+    "sent": "Check your inbox: AWS has sent a confirmation email. Nothing is sent until you confirm.",
+    "privacy": "Only your email and the zone are kept, to send these alerts. Every alert has an unsubscribe link.",
+    "badEmail": "That does not look like an email address.",
+    "rateLimited": "Too many sign-ups from this address. Try again in an hour.",
+    "failed": "The sign-up could not be sent. Please try again."
   }
 }

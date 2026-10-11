@@ -11,7 +11,8 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = REPO_ROOT / "data"
+# On Lambda the only writable place is /tmp, so the data folder can be moved with a variable.
+DATA_DIR = Path(os.environ.get("AFTERPASS_DATA_DIR") or REPO_ROOT / "data")
 CACHE_DIR = DATA_DIR / "cache"
 PUBLIC_DIR = DATA_DIR / "public"
 REPORTS_DIR = REPO_ROOT / "reports"

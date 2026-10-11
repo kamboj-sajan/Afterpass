@@ -7,6 +7,7 @@ import { HOUR_MS, istParts } from '@/lib/time'
 import type { SmokeLocality, SmokeRun, SmokeRunSummary } from '@/lib/types'
 import { LevelBadge, LocalityOutlook, LocalitySearch, SaiExplainer, SaiInfo } from './DelhiOutlook'
 import { NavLinks } from './NavLinks'
+import { NotifyForm } from './NotifyForm'
 import { Panel, SectionLabel } from './ui/Panel'
 import { Segmented } from './ui/Segmented'
 
@@ -167,6 +168,8 @@ export function DelhiPanel(props: {
             <LocalityOutlook run={run} locality={locality} hour={hour} chartHeight={170} />
           )}
         </div>
+
+        <NotifyForm zone={locality?.district ?? null} />
 
         <SaiExplainer />
         <p className="text-text-2 text-[10px]">{t('credits.winds')}</p>

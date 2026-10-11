@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web pipeline-run schedule-on schedule-off destroy seed-cache
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -75,13 +75,36 @@ web: ## Run the frontend dev server
 build: ## Build the frontend
 	cd frontend && npm run build
 
+REGION := ap-southeast-2
+# Where failure emails go: ALERT_EMAIL in .env, so the address stays out of the repository.
+ALERT_EMAIL := $(shell grep -s '^ALERT_EMAIL=' .env | cut -d= -f2)
+
 deploy: ## Deploy the AWS stack to ap-southeast-2 (asks first; costs money)
-	@echo "This creates or updates AWS resources in ap-southeast-2 and can cost money."
+	@echo "This creates or updates AWS resources in $(REGION) and can cost money."
 	@read -p "Type 'deploy' to continue: " ans && [ "$$ans" = "deploy" ] || (echo "Aborted."; exit 1)
-	cd infra && sam validate --lint && sam build && sam deploy
+	@test -n "$(ALERT_EMAIL)" || (echo "Set ALERT_EMAIL in .env first."; exit 1)
+	cd infra && sam validate --lint && sam build && sam deploy --parameter-overrides AlertEmail=$(ALERT_EMAIL)
+
+pipeline-run: ## Start one full run of the live pipeline on AWS (about $0.30)
+	aws stepfunctions start-execution --region $(REGION) --input '{"mode": "full"}' \
+		--state-machine-arn $$(aws cloudformation describe-stacks --region $(REGION) --stack-name afterpass \
+			--query "Stacks[0].Outputs[?OutputKey=='PipelineArn'].OutputValue" --output text)
+
+schedule-on: ## Switch on the daily 19:12 and 07:12 IST runs (costs about $0.30 a day)
+	$(UV) afterpass schedules --state on
+
+schedule-off: ## Switch the daily runs off
+	$(UV) afterpass schedules --state off
+
+destroy: ## Delete the AWS stack (asks first). The data bucket is kept; empty and delete it by hand.
+	@read -p "Type 'destroy' to delete the afterpass stack in $(REGION): " ans && [ "$$ans" = "destroy" ] || (echo "Aborted."; exit 1)
+	cd infra && sam delete --stack-name afterpass --region $(REGION) --no-prompts
 
 publish-s3: ## Upload data/public to the data bucket (served by CloudFront)
 	$(UV) afterpass publish --target s3
 
 deploy-web: ## Build the frontend against the stack and upload it to Amplify Hosting
 	$(UV) afterpass deploy-web
+
+seed-cache: ## Upload the pipeline's small reference files to the data bucket
+	$(UV) afterpass seed-cache
