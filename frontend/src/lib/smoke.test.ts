@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cityStats,
   defaultLocality,
   delhiMean,
   hourIndex,
   nextRun,
+  peakRun,
   peakWindow,
+  placeName,
   runForClock,
   runStartMs,
   saiLevel,
@@ -115,5 +118,32 @@ describe('localities', () => {
   it('averages Delhi cells per hour', () => {
     const sai = { hours: [1, 2], cells: { a: [10, 0], b: [30, 50] } } as unknown as DelhiSai
     expect(delhiMean(sai)).toEqual([20, 25])
+  })
+})
+
+describe('Delhi screen helpers', () => {
+  it('opens on the run with the highest Delhi-wide hour, the earliest of equals', () => {
+    const runs = [run('2025-11-05'), run('2025-11-06'), run('2025-11-07'), run('2025-11-08')]
+    runs[0].delhi_mean_peak = 98.1
+    runs[1].delhi_mean_peak = 98.9
+    runs[2].delhi_mean_peak = 98.9
+    runs[3].delhi_mean_peak = 91.3
+    expect(peakRun(runs)?.run_id).toBe('2025-11-06')
+    expect(peakRun([])).toBeNull()
+  })
+
+  it('summarises one hour across Delhi', () => {
+    const sai = { hours: [0, 3600], cells: { a: [0, 80], b: [10, 50], c: [20, 49], d: [30, 0] } } as unknown as DelhiSai
+    expect(cityStats(sai, 0)).toEqual({ mean: 15, high: 0, cells: 4 })
+    expect(cityStats(sai, 1)).toEqual({ mean: 44.75, high: 2, cells: 4 })
+  })
+
+  it('names a place in Hindi only when a Hindi name is known', () => {
+    const base = { id: 'x', district: 'West', lon: 0, lat: 0, h3: '', sai: [] }
+    const dwarka: SmokeLocality = { ...base, name: 'Dwarka', name_hi: 'द्वारका' }
+    const other: SmokeLocality = { ...base, name: 'Rattan Park' }
+    expect(placeName(dwarka, 'hi')).toBe('द्वारका')
+    expect(placeName(dwarka, 'en')).toBe('Dwarka')
+    expect(placeName(other, 'hi')).toBe('Rattan Park')
   })
 })

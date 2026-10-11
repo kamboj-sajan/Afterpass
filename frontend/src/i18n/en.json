@@ -193,5 +193,26 @@
       "high": "High",
       "very_high": "Very high"
     }
+  },
+  "delhi": {
+    "title": "Delhi smoke",
+    "back": "Explorer",
+    "open": "Open the Delhi view",
+    "replayBadge": "{{year}} replay",
+    "liveBadge": "48-hour forecast",
+    "sources": "Models smoke from burning in {{districts}} only. Other districts and the city's own pollution are not included.",
+    "sourcesUnnamed": "Models smoke from the burning AfterPass has mapped only. Other districts and the city's own pollution are not included.",
+    "window": "48-hour window",
+    "windowFrom": "48 hours from 00:00 IST",
+    "previousDay": "One day earlier",
+    "nextDay": "One day later",
+    "seasonPeak": "Go to the season's peak",
+    "cityNow": "Delhi average, this hour",
+    "cellsHigh": "Areas at High or above",
+    "cellsOf": "{{count}} of {{total}}",
+    "locality": "Locality",
+    "play": "Play the 48 hours",
+    "scrub": "Time in the 48 hours",
+    "peakBand": "Peak window for the chosen locality"
   }
 }

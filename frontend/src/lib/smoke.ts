@@ -120,3 +120,43 @@ export function defaultLocality(items: SmokeLocality[], preferred: string): Smok
     null,
   )
 }
+
+/** The locality shown first when nobody has picked one: the brief's example. */
+export const PREFERRED_LOCALITY = 'Dwarka'
+
+/** A locality's name in the reader's language, where a Hindi name is known. */
+export function placeName(locality: SmokeLocality, language: string): string {
+  return language.startsWith('hi') && locality.name_hi ? locality.name_hi : locality.name
+}
+
+/** The run whose worst hour has the highest Delhi-wide mean; the earliest of equals. */
+export function peakRun(runs: SmokeRunSummary[]): SmokeRunSummary | null {
+  return runs.reduce<SmokeRunSummary | null>(
+    (best, run) =>
+      best === null ||
+      run.delhi_mean_peak > best.delhi_mean_peak ||
+      (run.delhi_mean_peak === best.delhi_mean_peak && run.start < best.start)
+        ? run
+        : best,
+    null,
+  )
+}
+
+export interface CityStats {
+  /** Mean index over every Delhi cell. */
+  mean: number
+  /** Cells at High or above, and the number of cells. */
+  high: number
+  cells: number
+}
+
+/** Delhi-wide figures for one hour of a run. */
+export function cityStats(sai: DelhiSai, hour: number): CityStats {
+  const values = Object.values(sai.cells).map((series) => series[hour] ?? 0)
+  const highFrom = SAI_LEVELS[2][1]
+  return {
+    mean: values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length,
+    high: values.filter((value) => value >= highFrom).length,
+    cells: values.length,
+  }
+}

@@ -16,6 +16,7 @@ export function SmokeOutlookChart(props: {
   sai: number[]
   nowMs: number | null
   peak: PeakWindow | null
+  height?: number
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -23,7 +24,7 @@ export function SmokeOutlookChart(props: {
   const top = receptorColor(80)
   const bottom = receptorColor(10)
   return (
-    <ResponsiveContainer width="100%" height={120}>
+    <ResponsiveContainer width="100%" height={props.height ?? 120}>
       <AreaChart data={data} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="sai-fill" x1="0" y1="0" x2="0" y2="1">

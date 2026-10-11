@@ -62,6 +62,9 @@ class SmokeParams:
     trail_vertex_h: int = 2
     # Trails are only drawn for a particle's first two days; it still counts towards SAI after.
     trip_max_age_h: float = 48.0
+    # A run's trails start this long before the run, so smoke already over Delhi at the first
+    # hour arrives with its trail. Matches the trail length the app draws.
+    trail_lead_h: int = 6
     seed: int = 2025
 
     @property
@@ -348,8 +351,10 @@ def trail_stride(particles: Particles, run_starts: list[float], params: SmokePar
     released = particles.released
     age = params.trip_max_age_h * HOUR_S
     span = params.run_hours * HOUR_S
+    lead = params.trail_lead_h * HOUR_S
     busiest = max(
-        np.searchsorted(released, s + span, "right") - np.searchsorted(released, s - age, "left")
+        np.searchsorted(released, s + span, "right")
+        - np.searchsorted(released, s - lead - age, "left")
         for s in run_starts
     )
     return max(1, int(busiest) // params.trips_cap)
@@ -384,6 +389,7 @@ def simulate(
     tracked_all = np.arange(len(particles)) % stride == 0
     pending = sorted(run_starts)
     span = params.run_hours * HOUR_S
+    lead = params.trail_lead_h * HOUR_S
     track = _Track()
 
     ids = np.empty(0, np.int64)
@@ -428,14 +434,14 @@ def simulate(
         while pending and t >= pending[0] + span:
             run_start = pending.pop(0)
             trips = build_trips(
-                *track.window(run_start, run_start + span),
+                *track.window(run_start - lead, run_start + span),
                 params.trips_cap,
                 particles.ha_each * stride,
                 particles.released,
                 rng,
             )
             on_run(run_start, trips)
-            track.drop_before(pending[0] if pending else t)
+            track.drop_before((pending[0] if pending else t) - lead)
         if k == steps:
             break
 

@@ -160,6 +160,33 @@ def test_simulate_emits_capped_trips_for_each_run(make_wind) -> None:
     assert first["path"][-1][1] < first["path"][0][1]
 
 
+def test_trips_lead_into_a_run_so_smoke_arrives_with_its_trail(make_wind) -> None:
+    receptors = _square_receptors()
+    start = smoke.ist_timestamp(date(2025, 11, 3))
+    wind = make_wind(1.0, -1.0, hours=16, start=start)
+    n = 50
+    particles = smoke.Particles(np.full(n, 75.8), np.full(n, 30.2), np.full(n, start), ha_each=1.0)
+    run_start = start + 8 * 3600
+    earliest = {}
+    for lead in (0, 6):
+        params = smoke.SmokeParams(run_hours=4, diffusivity_m2s=0.0, trail_lead_h=lead)
+        runs = {}
+        smoke.simulate(
+            particles,
+            wind,
+            receptors,
+            start,
+            start + 14 * 3600,
+            params,
+            [run_start],
+            lambda s, trips, runs=runs: runs.__setitem__(s, trips),
+        )
+        earliest[lead] = min(trip["ts"][0] for trip in runs[run_start])
+        assert max(trip["ts"][-1] for trip in runs[run_start]) == run_start + 4 * 3600
+    assert earliest[0] == run_start
+    assert earliest[6] == run_start - 6 * 3600
+
+
 def test_normalise_and_levels() -> None:
     raw = np.array([[0.0, 1.0], [2.0, 4.0]])
     p95 = smoke.normaliser(raw)

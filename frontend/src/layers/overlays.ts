@@ -1,8 +1,7 @@
-/** Transient overlays: the satellite scan band and the marker for a highlighted village. */
+/** Transient overlays: the satellite scan band and the marker for a highlighted place. */
 
 import { PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import { EMBER_CORE, INK, OFFICIAL, TEXT, withAlpha, type RGBA } from '@/lib/colors'
-import type { Village } from '@/lib/types'
 
 interface Band {
   polygon: [number, number][]
@@ -44,10 +43,17 @@ export function scanLayer(bounds: [number, number, number, number], progress: nu
   })
 }
 
-export function villageLayers(village: Village | null) {
+/** A place to ring and label on the map: a highlighted village or a Delhi locality. */
+export interface Marker {
+  lon: number
+  lat: number
+  name: string
+}
+
+export function villageLayers(village: Marker | null) {
   const data = village === null ? [] : [village]
   return [
-    new ScatterplotLayer<Village>({
+    new ScatterplotLayer<Marker>({
       id: 'village-marker',
       data,
       getPosition: (d) => [d.lon, d.lat],
@@ -59,7 +65,7 @@ export function villageLayers(village: Village | null) {
       lineWidthMinPixels: 2,
       parameters: { depthCompare: 'always' },
     }),
-    new TextLayer<Village>({
+    new TextLayer<Marker>({
       id: 'village-label',
       data,
       getPosition: (d) => [d.lon, d.lat],

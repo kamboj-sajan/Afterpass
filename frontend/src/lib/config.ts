@@ -27,3 +27,11 @@ export function basemapStyle(): string {
   }
   return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 }
+
+/** Phones get fewer smoke trails (brief §12.2). */
+export function isSmallScreen(): boolean {
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
+/** The Delhi screen opens tilted over the city, looking north-west, where the smoke comes from. */
+export const DELHI_VIEW = { longitude: 77.1, latitude: 28.63, zoom: 9.3, pitch: 55, bearing: -15 }

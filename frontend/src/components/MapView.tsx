@@ -1,17 +1,18 @@
 import type { Layer, PickingInfo } from '@deck.gl/core'
-import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import Map, { NavigationControl, useControl, type MapRef } from 'react-map-gl/maplibre'
+import Map, { NavigationControl, type MapRef } from 'react-map-gl/maplibre'
+import { DeckOverlay } from '@/components/DeckOverlay'
 import { burnsLayer, prepareBurns, type BurnCell } from '@/layers/burns'
 import { delhiLayer, prepareDelhi, type DelhiCell } from '@/layers/delhi'
 import { districtBounds, districtLayers, type DistrictFeature } from '@/layers/districts'
 import { officialLayer, prepareOfficial, type OfficialDatum, type Sweep } from '@/layers/official'
 import { scanLayer, villageLayers } from '@/layers/overlays'
 import { scarLayers, type ScarFeature } from '@/layers/scars'
+import { TOOLTIP_STYLE } from '@/layers/tooltip'
 import { prepareSmoke, smokeLayer } from '@/layers/smoke'
-import { INITIAL_VIEW, REGION_BOUNDS, SCAR_MIN_ZOOM, basemapStyle } from '@/lib/config'
+import { INITIAL_VIEW, REGION_BOUNDS, SCAR_MIN_ZOOM, basemapStyle, isSmallScreen } from '@/lib/config'
 import { useScars } from '@/lib/data'
 import { formatDate, formatDateTime, formatHectares, formatShare, formatTime } from '@/lib/format'
 import { useReducedMotion, useRise } from '@/lib/motion'
@@ -19,24 +20,6 @@ import { hourIndex, saiLevel } from '@/lib/smoke'
 import { useExplorer } from '@/lib/store'
 import { weekRange } from '@/lib/time'
 import type { SeasonData, SmokeRun } from '@/lib/types'
-
-function DeckOverlay(props: MapboxOverlayProps) {
-  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props))
-  overlay.setProps(props)
-  return null
-}
-
-const TOOLTIP_STYLE = {
-  background: 'rgba(14, 18, 30, 0.92)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  borderRadius: '10px',
-  color: '#E8ECF5',
-  fontFamily: '"Inter Variable", sans-serif',
-  fontSize: '12px',
-  lineHeight: '1.5',
-  padding: '8px 10px',
-  boxShadow: '0 12px 32px rgba(0, 0, 0, 0.45)',
-}
 
 /** Columns fade out over this zoom range as the scar outlines take over. */
 const COLUMN_FADE: [number, number] = [SCAR_MIN_ZOOM - 0.6, SCAR_MIN_ZOOM + 0.4]
@@ -70,11 +53,6 @@ function panelPadding(): { top: number; bottom: number; left: number; right: num
     left: sides ? left : 0,
     right: sides ? right : 0,
   }
-}
-
-/** Phones get fewer smoke trails (brief §12.2). */
-function isSmallScreen(): boolean {
-  return window.matchMedia('(max-width: 767px)').matches
 }
 
 export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: SmokeRun | null }) {
