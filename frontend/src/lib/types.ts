@@ -238,3 +238,49 @@ export interface SmokeRun {
   sai: DelhiSai
   localities: SmokeLocality[]
 }
+
+/** A share with its Wilson 95% interval, from the hand-labelled sample. */
+export interface Proportion {
+  value: number | null
+  wilson_95: [number, number] | null
+  n: number
+}
+
+export interface Pm25Day {
+  date: string
+  sai: number | null
+  pm25: number | null
+  stations: number
+}
+
+/** `validation/{season}.json`: calibration, the visual check once labelled, and the PM2.5 comparison. */
+export interface Validation extends Meta {
+  season: number
+  district: string
+  firms_window: [string, string]
+  samples: {
+    confident_viirs_detections: number
+    positive_pixels: number
+    clear_negative_pixels: number
+    background_pixels: number
+  }
+  thresholds: { t_nbr: number; t_mirbi: number; t_nir: number; t_dnbr: number }
+  metrics: { recall_on_firms_positives: number; fpr_on_clear_negatives: number; background_flag_rate: number }
+  visual_qa?: {
+    generated_at: string
+    precision: Proportion
+    detected_share_of_burned_points: Proportion
+    scars: { sampled: number; burned: number; not_burned: number; unsure: number; unlabelled: number }
+  }
+  pm25?: {
+    generated_at: string
+    source: string
+    smoke_sources: string[]
+    stations: number
+    station_days: number
+    days: number
+    pearson: { r: number; p: number } | null
+    spearman: { rho: number; p: number } | null
+    series: Pm25Day[]
+  }
+}

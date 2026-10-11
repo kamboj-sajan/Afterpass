@@ -11,15 +11,62 @@ import { Segmented } from './ui/Segmented'
 const STEP_MS = 10 * 60 * 1000
 const TICK_HOURS = 6
 
+// The clock changes on every frame of playback, so only these three small pieces read it.
+
+function Playhead(props: { start: number; end: number }) {
+  const clockMs = useDelhi((s) => s.clockMs)
+  return (
+    <div
+      className="bg-text pointer-events-none absolute inset-y-0 w-0.5"
+      style={{ left: `${((clockMs - props.start) / (props.end - props.start)) * 100}%` }}
+    />
+  )
+}
+
+function Scrubber(props: { start: number; end: number }) {
+  const { t, i18n } = useTranslation()
+  const clockMs = useDelhi((s) => s.clockMs)
+  const setClock = useDelhi((s) => s.setClock)
+  const setPlaying = useDelhi((s) => s.setPlaying)
+  return (
+    <Slider.Root
+      min={props.start}
+      max={props.end - 1}
+      step={STEP_MS}
+      value={[clockMs]}
+      onValueChange={([value]) => {
+        setPlaying(false)
+        setClock(value)
+      }}
+      className="absolute inset-x-0 top-0 flex h-5 touch-none items-center select-none"
+    >
+      <Slider.Track className="h-5 grow cursor-pointer" />
+      <Slider.Thumb
+        aria-label={t('delhi.scrub')}
+        aria-valuetext={formatDateTime(clockMs, i18n.language)}
+        className="focus-ring block h-6 w-2 cursor-grab rounded-sm bg-white shadow"
+      />
+    </Slider.Root>
+  )
+}
+
+function ClockText() {
+  const { i18n } = useTranslation()
+  const clockMs = useDelhi((s) => s.clockMs)
+  return (
+    <div className="tabular text-text text-sm font-semibold" data-testid="delhi-clock">
+      {formatDateTime(clockMs, i18n.language)}
+    </div>
+  )
+}
+
 /** The run's 48 hours as a scrubbable track, with the chosen locality's peak window marked. */
 export function DelhiTimeline(props: { peak: PeakWindow | null }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const span = useDelhi((s) => s.window)
-  const clockMs = useDelhi((s) => s.clockMs)
   const playing = useDelhi((s) => s.playing)
   const speed = useDelhi((s) => s.speed)
-  const setClock = useDelhi((s) => s.setClock)
   const setPlaying = useDelhi((s) => s.setPlaying)
   const setSpeed = useDelhi((s) => s.setSpeed)
 
@@ -32,7 +79,7 @@ export function DelhiTimeline(props: { peak: PeakWindow | null }) {
   )
 
   return (
-    <div className="panel flex min-h-(--timeline-h) items-center gap-3 px-3.5 py-2.5">
+    <div className="panel flex items-center gap-3 px-3.5 py-2.5 max-md:gap-2 max-md:px-2 md:min-h-(--timeline-h)">
       <button
         type="button"
         aria-label={playing ? t('timeline.pause') : t('delhi.play')}
@@ -44,6 +91,7 @@ export function DelhiTimeline(props: { peak: PeakWindow | null }) {
       </button>
 
       <Segmented
+        className="max-md:hidden"
         label={t('timeline.speed')}
         value={String(speed)}
         onChange={(value) => setSpeed(Number(value) as DelhiSpeed)}
@@ -83,27 +131,10 @@ export function DelhiTimeline(props: { peak: PeakWindow | null }) {
                 </span>
               </div>
             ))}
-            <div className="bg-text pointer-events-none absolute inset-y-0 w-0.5" style={{ left: pct(clockMs) }} />
+            <Playhead start={start} end={end} />
           </div>
-          <Slider.Root
-            min={start}
-            max={end - 1}
-            step={STEP_MS}
-            value={[clockMs]}
-            onValueChange={([value]) => {
-              setPlaying(false)
-              setClock(value)
-            }}
-            className="absolute inset-x-0 top-0 flex h-5 touch-none items-center select-none"
-          >
-            <Slider.Track className="h-5 grow cursor-pointer" />
-            <Slider.Thumb
-              aria-label={t('delhi.scrub')}
-              aria-valuetext={formatDateTime(clockMs, language)}
-              className="focus-ring block h-6 w-2 cursor-grab rounded-sm bg-white shadow"
-            />
-          </Slider.Root>
-          <div className="text-text-2 absolute inset-x-0 bottom-0 flex items-center gap-3 text-[10px]">
+          <Scrubber start={start} end={end} />
+          <div className="text-text-2 absolute inset-x-0 bottom-0 flex items-center gap-3 text-[10px] max-md:hidden">
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-3 rounded-sm" style={{ background: css(receptorColor(70), 0.5) }} />
               {t('delhi.peakBand')}
@@ -112,10 +143,8 @@ export function DelhiTimeline(props: { peak: PeakWindow | null }) {
         </div>
       </div>
 
-      <div className="shrink-0 text-right">
-        <div className="tabular text-text text-sm font-semibold" data-testid="delhi-clock">
-          {formatDateTime(clockMs, language)}
-        </div>
+      <div className="shrink-0 text-right max-md:hidden">
+        <ClockText />
         <div className="text-text-2 text-[10px] tracking-[0.14em]">{t('timeline.ist')}</div>
       </div>
     </div>

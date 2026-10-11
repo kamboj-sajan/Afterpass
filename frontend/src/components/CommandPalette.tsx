@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { MapPin, Square, Wind } from 'lucide-react'
-import { useEffect } from 'react'
+import { memo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { districtCentre } from '@/layers/districts'
 import { formatHectares } from '@/lib/format'
@@ -13,7 +13,7 @@ const GROUP =
   '[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:text-text-2 [&_[cmdk-group-heading]]:uppercase'
 
 /** ⌘K / Ctrl+K: find a district, village or Delhi locality and fly there. */
-export function CommandPalette(props: { data: SeasonData; localities: SmokeLocality[] }) {
+export const CommandPalette = memo(function CommandPalette(props: { data: SeasonData; localities: SmokeLocality[] }) {
   const { data, localities } = props
   const { t, i18n } = useTranslation()
   const setSmokeLocality = useExplorer((s) => s.setSmokeLocality)
@@ -115,4 +115,4 @@ export function CommandPalette(props: { data: SeasonData; localities: SmokeLocal
       </Command.List>
     </Command.Dialog>
   )
-}
+})

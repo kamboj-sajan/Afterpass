@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough build deploy
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -21,8 +21,14 @@ test: lint ## Lint, then run the backend and frontend unit tests
 	$(UV) pytest -q
 	cd frontend && npm run test
 
-walkthrough: ## Record the Explorer walkthrough (needs serve-data and web running)
+walkthrough: ## Record the full walkthrough (needs serve-data and web; `make agent` for the chat step)
 	cd frontend && node scripts/walkthrough.mjs
+
+a11y: ## Check every screen with axe at desktop and phone size (needs serve-data and web)
+	cd frontend && node scripts/axe-check.mjs
+
+globe-assets: ## Rebuild the hero globe's country outlines from Natural Earth
+	$(UV) afterpass globe-assets
 
 smoke-apis: ## Check FIRMS and Earth Search respond for Sangrur
 	$(UV) python scripts/smoke_apis.py

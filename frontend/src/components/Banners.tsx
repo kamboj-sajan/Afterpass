@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { CloudOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatDate } from '@/lib/format'
@@ -6,7 +7,7 @@ import { useExplorer } from '@/lib/store'
 import type { SeasonData } from '@/lib/types'
 
 /** Plain-language notes about gaps in the imagery for the week on screen. */
-export function Banners(props: { data: SeasonData }) {
+export const Banners = memo(function Banners(props: { data: SeasonData }) {
   const { t, i18n } = useTranslation()
   const week = useExplorer((s) => s.week)
   const districts = useExplorer((s) => s.districts)
@@ -31,4 +32,4 @@ export function Banners(props: { data: SeasonData }) {
       ))}
     </ul>
   )
-}
+})

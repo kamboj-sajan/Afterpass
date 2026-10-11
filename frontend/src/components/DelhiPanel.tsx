@@ -1,12 +1,12 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Languages } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
 import { useDelhi } from '@/lib/delhiStore'
 import { formatDateRange } from '@/lib/format'
 import { cityStats, hourIndex, peakRun } from '@/lib/smoke'
 import { HOUR_MS, istParts } from '@/lib/time'
 import type { SmokeLocality, SmokeRun, SmokeRunSummary } from '@/lib/types'
 import { LevelBadge, LocalityOutlook, LocalitySearch, SaiExplainer, SaiInfo } from './DelhiOutlook'
+import { NavLinks } from './NavLinks'
 import { Panel, SectionLabel } from './ui/Panel'
 
 const STEP_BUTTON =
@@ -55,27 +55,11 @@ export function DelhiPanel(props: {
       className="w-[min(var(--panel-left),calc(100vw-2*var(--edge)))]"
       actions={
         <div className="flex items-center gap-1">
-          <Link
-            to="/map"
-            className="focus-ring text-text-2 border-hairline inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] hover:text-white"
-          >
-            <ArrowLeft size={12} aria-hidden />
-            {t('delhi.back')}
-          </Link>
-          <button
-            type="button"
-            aria-label={t('app.language')}
-            title={t('app.language')}
-            onClick={() => void i18n.changeLanguage(language.startsWith('hi') ? 'en' : 'hi')}
-            className="focus-ring text-text-2 border-hairline inline-flex cursor-pointer items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] hover:text-white"
-          >
-            <Languages size={12} aria-hidden />
-            {language.startsWith('hi') ? 'EN' : 'हिं'}
-          </button>
           <SaiInfo run={run} />
         </div>
       }
     >
+      <NavLinks className="px-4 pb-3" />
       <div className="scroll-thin flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-4">
         <div>
           <span className="border-hairline text-ember-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium">

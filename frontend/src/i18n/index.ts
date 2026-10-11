@@ -22,6 +22,8 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 })
 
+document.documentElement.lang = initialLanguage()
+
 i18n.on('languageChanged', (language) => {
   document.documentElement.lang = language
   try {

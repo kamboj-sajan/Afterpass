@@ -1,6 +1,7 @@
 import { Wind } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { Banners } from '@/components/Banners'
 import { AskButton, ChatDrawer } from '@/components/ChatDrawer'
 import { CommandPalette } from '@/components/CommandPalette'
@@ -10,28 +11,64 @@ import { GroundTruthPanel } from '@/components/GroundTruthPanel'
 import { ImageryDrawer } from '@/components/ImageryDrawer'
 import { MapView } from '@/components/MapView'
 import { MissionPanel } from '@/components/MissionPanel'
+import { PhoneSheet } from '@/components/PhoneSheet'
 import { Timeline } from '@/components/Timeline'
 import { DATA_BASE_URL } from '@/lib/config'
 import { prefetchSmokeRun, useSeasonData, useSmokeIndex, useSmokeRun } from '@/lib/data'
-import { weeklySeries } from '@/lib/metrics'
+import { cn } from '@/lib/cn'
+import { peakWeek } from '@/lib/metrics'
 import { usePlayback } from '@/lib/playback'
+import { usePhone } from '@/lib/screen'
 import { nextRun, runForClock } from '@/lib/smoke'
 import { useExplorer } from '@/lib/store'
-import type { SeasonData, SmokeRun } from '@/lib/types'
+import { useStory } from '@/lib/storyStore'
+import { HOUR_MS, weekRange } from '@/lib/time'
+import type { SeasonData, SmokeRun, SmokeRunSummary } from '@/lib/types'
+import { StoryButton, StoryPlayer } from '@/story/StoryPlayer'
 
 /** Start on every published district and the week with the most burned area. */
 function useInitialSelection(data: SeasonData | null) {
   useEffect(() => {
     if (data === null || useExplorer.getState().week !== null) return
     const names = data.summary.districts.map((d) => d.district)
-    const series = weeklySeries(data.summary, names)
-    if (series.length === 0) return
-    const peak = series.reduce((best, row) =>
-      row.recorded_ha + row.unrecorded_ha > best.recorded_ha + best.unrecorded_ha ? row : best,
-    )
+    const week = peakWeek(data.summary, names)
+    if (week === null) return
     useExplorer.getState().setDistricts(names)
-    useExplorer.getState().setWeek(peak.week)
+    useExplorer.getState().setWeek(week)
   }, [data])
+}
+
+/**
+ * `?demo=1` puts the Explorer in the same state every time, for a repeatable recording: the
+ * season's biggest week, every district, the clock at noon on its first day. `?story=1` starts
+ * the story (brief §13.2).
+ */
+function useDemoAndStory(data: SeasonData | null) {
+  const [params] = useSearchParams()
+  const demo = params.get('demo') === '1'
+  const story = params.get('story') === '1'
+  const done = useRef({ demo: false, story: false })
+  useEffect(() => {
+    if (data === null) return
+    const explorer = useExplorer.getState()
+    if (demo && !done.current.demo) {
+      done.current.demo = true
+      const names = data.summary.districts.map((d) => d.district)
+      const week = peakWeek(data.summary, names)
+      if (week !== null) {
+        explorer.setDistricts(names)
+        explorer.setWeek(week)
+        explorer.setClock(weekRange(week).start + 12 * HOUR_MS)
+        explorer.setSpeed(4)
+        explorer.setScope('week')
+      }
+    }
+    if (story && !done.current.story) {
+      done.current.story = true
+      useStory.getState().start()
+    }
+    if (!story) done.current.story = false
+  }, [data, demo, story])
 }
 
 function Loading() {
@@ -97,6 +134,8 @@ function useSmokeForClock(season: number): { run: SmokeRun | null; state: 'none'
   return { run, state: 'ready' }
 }
 
+const EMPTY_RUNS: SmokeRunSummary[] = []
+
 export function Explorer() {
   const { t } = useTranslation()
   const season = useExplorer((s) => s.season)
@@ -105,19 +144,87 @@ export function Explorer() {
   const result = useSeasonData(season)
   const data = result.status === 'ready' ? result.data : null
   useInitialSelection(data)
-  const sweep = usePlayback()
+  useDemoAndStory(data)
+  usePlayback()
   const smoke = useSmokeForClock(season)
+  const runs = useSmokeIndex()?.runs
+  const presenting = useStory((s) => s.presenting)
+  const storying = useStory((s) => s.chapter !== null)
   const [outlookOpen, setOutlookOpen] = useState(true)
+  const phone = usePhone()
 
   if (result.status === 'error') return <LoadError />
   if (data === null || week === null) return <Loading />
 
+  if (phone) {
+    // Phones: the map fills the screen and the panels live in a bottom sheet (brief §12.2).
+    return (
+      <main
+        id="main"
+        className="absolute inset-0 [--edge:8px] [--panel-left:0px] [--panel-right:0px] [--timeline-h:176px]"
+      >
+        <MapView data={data} smoke={smoke.run} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-2">
+          <StoryPlayer data={data} runs={runs ?? EMPTY_RUNS} />
+          <div className="pointer-events-auto">
+            <ImageryDrawer data={data} />
+          </div>
+        </div>
+        <PhoneSheet
+          title={t('app.name')}
+          bar={
+            <div className="flex items-stretch gap-2">
+              <div className="min-w-0 flex-1">
+                <Timeline />
+              </div>
+              <StoryButton />
+              <AskButton />
+            </div>
+          }
+          tabs={[
+            { id: 'truth', label: t('truth.title'), content: <GroundTruthPanel data={data} /> },
+            {
+              id: 'mission',
+              label: t('mission.title'),
+              content: <MissionPanel data={data} smokeState={smoke.state} />,
+            },
+            ...(smoke.run !== null && smokeOn
+              ? [
+                  {
+                    id: 'smoke',
+                    label: t('layers.smoke.name'),
+                    content: <DelhiOutlook run={smoke.run} className="w-full" />,
+                  },
+                ]
+              : []),
+          ]}
+        />
+        <CommandPalette data={data} localities={smoke.run?.localities ?? []} />
+        <ChatDrawer screen="map" />
+      </main>
+    )
+  }
+
   return (
-    <div className="absolute inset-0">
-      <MapView data={data} sweep={sweep} smoke={smoke.run} />
+    <main
+      id="main"
+      className={cn(
+        'absolute inset-0',
+        presenting && 'presenting',
+        // The caption panel sits above the timeline; the map's own controls move up to clear it.
+        storying && !presenting && '[--timeline-h:188px]',
+      )}
+    >
+      <MapView data={data} smoke={smoke.run} />
       {/* Panels float over the map; the wrapper ignores the pointer so the map stays draggable. */}
       <div className="pointer-events-none absolute inset-0 grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)_auto] gap-(--edge) p-(--edge)">
-        <div className="pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full">
+        {/* Presentation mode keeps the content (numbers, images, outlook) and hides the controls. */}
+        <div
+          className={cn(
+            'pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full',
+            presenting && 'invisible',
+          )}
+        >
           <MissionPanel data={data} smokeState={smoke.state} />
         </div>
         <div className="flex min-h-0 flex-col items-center justify-between gap-3">
@@ -150,16 +257,20 @@ export function Explorer() {
         <div className="pointer-events-auto col-start-3 row-span-2 row-start-1 flex min-h-0 flex-col [&>section]:max-h-full">
           <GroundTruthPanel data={data} />
         </div>
-        <div className="pointer-events-auto col-start-2 row-start-2 flex items-stretch gap-(--edge)">
-          <div className="min-w-0 flex-1">
-            <Timeline />
+        <div className="col-start-2 row-start-2 flex flex-col gap-(--edge)">
+          <StoryPlayer data={data} runs={runs ?? EMPTY_RUNS} />
+          <div className={cn('pointer-events-auto flex items-stretch gap-(--edge)', presenting && 'hidden')}>
+            <div className="min-w-0 flex-1">
+              <Timeline />
+            </div>
+            <StoryButton />
+            <AskButton />
           </div>
-          <AskButton />
         </div>
       </div>
       <CommandPalette data={data} localities={smoke.run?.localities ?? []} />
       <ChatDrawer screen="map" />
       {showFps && <FpsMeter />}
-    </div>
+    </main>
   )
 }

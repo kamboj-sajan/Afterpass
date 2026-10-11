@@ -144,3 +144,12 @@ export function coverageNotes(summary: Summary, names: string[], week: string | 
   }
   return notes
 }
+
+/** The week with the most burned area across the given districts, or null with no data. */
+export function peakWeek(summary: Summary, names: string[]): string | null {
+  const series = weeklySeries(summary, names)
+  if (series.length === 0) return null
+  return series.reduce((best, row) =>
+    row.recorded_ha + row.unrecorded_ha > best.recorded_ha + best.unrecorded_ha ? row : best,
+  ).week
+}

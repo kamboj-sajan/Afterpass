@@ -1,5 +1,6 @@
 /**
- * Scripted walkthrough of the Explorer and the Delhi screen in a headless browser.
+ * Scripted walkthrough of the whole app in a headless browser: hero, Explorer, Delhi screen,
+ * Ask AfterPass, the story, the Method page and the phone layout.
  *
  * Records a video and screenshots into ../reports/, fails on any console error, and checks
  * that the season KPIs on screen equal the totals in summary.json (formatted en-IN). Software
@@ -54,7 +55,13 @@ page.on('pageerror', (error) => problems.push(`page error: ${error.message}`))
 const shot = (name) => page.screenshot({ path: resolve(reports, `explorer_${name}.png`) })
 const pause = (ms) => page.waitForTimeout(ms)
 
-await page.goto(`${appUrl}/map`)
+// Hero: the globe, then the dive into the map.
+await page.goto(`${appUrl}/`)
+await page.getByTestId('hero').waitFor({ timeout: 60_000 })
+await pause(12_000) // the globe loads, settles over North India and runs one pass
+await shot('0_hero')
+await page.getByRole('button', { name: 'Explore the map' }).click()
+await page.waitForURL('**/map', { timeout: 30_000 })
 await page.getByTestId('kpi-value').first().waitFor({ timeout: 60_000 })
 await page.waitForFunction(() => document.querySelector('canvas.maplibregl-canvas') !== null)
 await pause(9000) // basemap tiles, then the columns rise
@@ -174,9 +181,96 @@ if (!agentUp) {
   await shot('8_ask_afterpass')
 }
 
+// The story, in demo mode: five chapters, in order, then the Explorer as it was.
+await page.goto(`${appUrl}/map?demo=1&story=1`)
+await page.getByTestId('story').waitFor({ timeout: 60_000 })
+const captions = []
+const storyStarted = Date.now()
+let presented = false
+// About two minutes on a GPU. Software WebGL draws a frame or two a second, and the story's
+// clock never jumps more than a quarter second per frame, so here it takes several times longer.
+while ((await page.getByTestId('story').count()) > 0 && Date.now() - storyStarted < 720_000) {
+  const caption = await page
+    .getByTestId('story-caption')
+    .innerText({ timeout: 2000 })
+    .catch(() => null)
+  if (caption !== null && captions.at(-1) !== caption) {
+    captions.push(caption)
+    await pause(5000)
+    await shot(`9_story_${captions.length}`)
+    if (captions.length === 2 && !presented) {
+      // Presentation mode: controls hidden, caption enlarged.
+      presented = true
+      await page.keyboard.press('p')
+      await pause(1200)
+      await shot('9_story_presentation')
+      await page.keyboard.press('p')
+    }
+  }
+  await pause(500)
+}
+console.log(`Story: ${captions.length} chapters in ${Math.round((Date.now() - storyStarted) / 1000)} s`)
+for (const caption of captions) console.log(`  - ${caption}`)
+if (captions.length !== 5) problems.push(`The story showed ${captions.length} chapters, not 5.`)
+if ((await page.getByTestId('story').count()) > 0) problems.push('The story did not end by itself.')
+
+// Method page: its numbers against the published files.
+await page.goto(`${appUrl}/method`)
+await page.getByTestId('method-pm25').waitFor({ timeout: 60_000 })
+await pause(1500)
+{
+  const season = (await (await fetch(`${dataUrl}/latest.json`)).json()).season
+  const summary = await (await fetch(`${dataUrl}/seasons/${season}/summary.json`)).json()
+  const validation = await (await fetch(`${dataUrl}/validation/${season}.json`)).json()
+  const hours = summary.firms.by_ist_hour
+  const total = hours.reduce((sum, count) => sum + count, 0)
+  const midday = hours.slice(12, 16).reduce((sum, count) => sum + count, 0)
+  const text = await page.getByTestId('method-screen').innerText()
+  const expectedText = [
+    integer.format(total),
+    percent.format(midday / total),
+    integer.format(validation.samples.confident_viirs_detections),
+    percent.format(validation.metrics.recall_on_firms_positives),
+    validation.pm25.pearson.r.toFixed(2),
+    validation.pm25.spearman.rho.toFixed(2),
+    `${validation.pm25.stations} CPCB`,
+  ]
+  const missing = expectedText.filter((value) => !text.includes(value))
+  console.log(
+    `Method page: ${expectedText.length - missing.length} of ${expectedText.length} published figures found on screen`,
+  )
+  if (missing.length > 0) problems.push(`Method page does not show: ${missing.join(', ')}`)
+  await shot('10_method')
+}
+
 await context.close()
 const video = await page.video().path()
-renameSync(video, resolve(reports, 'explorer_walkthrough.webm'))
+renameSync(video, resolve(reports, 'full_walkthrough.webm'))
+
+// Phone size: the bottom-sheet layout, with nothing wider than the screen.
+{
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  })
+  const small = await phone.newPage()
+  small.on('pageerror', (error) => problems.push(`phone page error: ${error.message}`))
+  for (const [path, name] of [
+    ['/map', '11_phone_map'],
+    ['/delhi', '12_phone_delhi'],
+  ]) {
+    await small.goto(`${appUrl}${path}`)
+    await small.getByTestId('phone-sheet').waitFor({ timeout: 60_000 })
+    await small.waitForTimeout(6000)
+    const overflow = await small.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    if (overflow > 0) problems.push(`Phone ${path} is ${overflow}px wider than the screen.`)
+    await small.screenshot({ path: resolve(reports, `explorer_${name}.png`) })
+  }
+  console.log('Phone layout: bottom sheet shown on /map and /delhi')
+  await phone.close()
+}
 rmSync(videoDir, { recursive: true, force: true })
 await browser.close()
 
@@ -184,4 +278,4 @@ if (problems.length > 0) {
   console.error(`\n${problems.length} problem(s):\n- ${[...new Set(problems)].join('\n- ')}`)
   process.exit(1)
 }
-console.log('Walkthrough passed. Video and screenshots are in reports/.')
+console.log('Walkthrough passed. Video (full_walkthrough.webm) and screenshots are in reports/.')

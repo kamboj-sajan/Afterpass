@@ -10,6 +10,7 @@ import {
   richText,
   toolDetail,
   type AgentReply,
+  type Screen,
   type ToolUse,
 } from '@/lib/agent'
 import { useChat, type ChatMessage } from '@/lib/chatStore'
@@ -149,7 +150,7 @@ function Exchange(props: { message: ChatMessage }) {
 }
 
 /** The "Ask AfterPass" drawer (brief §12.7). Its answers come from the agent; it also runs their map actions. */
-export function ChatDrawer(props: { screen: 'map' | 'delhi' }) {
+export function ChatDrawer(props: { screen: Screen }) {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const open = useChat((s) => s.open)
@@ -258,6 +259,7 @@ export function ChatDrawer(props: { screen: 'map' | 'delhi' }) {
                   key={question}
                   type="button"
                   onClick={() => void send(question)}
+                  lang={/[\u0900-\u097f]/.test(question) ? 'hi' : 'en'}
                   className="focus-ring border-hairline text-text cursor-pointer rounded-xl border bg-black/20 px-3 py-2 text-left text-xs leading-snug hover:bg-white/10"
                 >
                   {question}

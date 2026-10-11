@@ -1,4 +1,5 @@
-import { Languages, Search } from 'lucide-react'
+import { memo } from 'react'
+import { Search } from 'lucide-react'
 import { Slider } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import { css, EMBER, OFFICIAL, receptorGradient, shareGradient, SMOKE, SMOKE_FRESH } from '@/lib/colors'
@@ -8,6 +9,7 @@ import { seasonWeeks } from '@/lib/metrics'
 import { useExplorer, type LayerId } from '@/lib/store'
 import { weekDates } from '@/lib/time'
 import type { SeasonData } from '@/lib/types'
+import { NavLinks } from './NavLinks'
 import { InfoPopover } from './ui/InfoPopover'
 import { Panel, SectionLabel } from './ui/Panel'
 import { Segmented } from './ui/Segmented'
@@ -74,7 +76,10 @@ function LayerLegend(props: { id: LayerId }) {
 /** Layers that need a published smoke run. */
 const SMOKE_LAYERS: LayerId[] = ['smoke', 'delhi']
 
-export function MissionPanel(props: { data: SeasonData; smokeState: 'none' | 'outside' | 'ready' }) {
+export const MissionPanel = memo(function MissionPanel(props: {
+  data: SeasonData
+  smokeState: 'none' | 'outside' | 'ready'
+}) {
   const { data, smokeState } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -114,19 +119,10 @@ export function MissionPanel(props: { data: SeasonData; smokeState: 'none' | 'ou
             {t('mission.search')}
             <kbd className="font-mono text-[10px] opacity-70">⌘K</kbd>
           </button>
-          <button
-            type="button"
-            aria-label={t('app.language')}
-            title={t('app.language')}
-            onClick={() => void i18n.changeLanguage(language.startsWith('hi') ? 'en' : 'hi')}
-            className="focus-ring text-text-2 border-hairline inline-flex cursor-pointer items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] hover:text-white"
-          >
-            <Languages size={12} aria-hidden />
-            {language.startsWith('hi') ? 'EN' : 'हिं'}
-          </button>
         </div>
       }
     >
+      <NavLinks className="px-4 pb-3" />
       <div className="scroll-thin flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-4">
         <div>
           <SectionLabel>{t('mission.season')}</SectionLabel>
@@ -247,7 +243,9 @@ export function MissionPanel(props: { data: SeasonData; smokeState: 'none' | 'ou
         <div className="text-text-2 flex items-center gap-1.5 text-[11px]">
           <InfoPopover label={t('mission.credits')} side="right">
             <ul className="flex flex-col gap-1.5">
-              {(['sentinel', 'firms', 'worldcover', 'winds', 'places', 'boundaries', 'limits'] as const).map((key) => (
+              {(
+                ['sentinel', 'firms', 'worldcover', 'winds', 'places', 'boundaries', 'naturalEarth', 'limits'] as const
+              ).map((key) => (
                 <li key={key}>{t(`credits.${key}`)}</li>
               ))}
               {!usingAmazonLocation && <li>{t('map.basemapFallback')}</li>}
@@ -258,4 +256,4 @@ export function MissionPanel(props: { data: SeasonData; smokeState: 'none' | 'ou
       </div>
     </Panel>
   )
-}
+})

@@ -296,6 +296,15 @@ def pm25(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
     typer.echo(f"Wrote {report_path}, {chart} and the public validation file")
 
 
+@app.command("globe-assets")
+def globe_assets() -> None:
+    """Build the hero globe's country outlines from Natural Earth (India point of view)."""
+    from afterpass import globe
+
+    path, count = globe.build()
+    typer.echo(f"Wrote {count} countries to {path} ({path.stat().st_size / 1e3:.0f} KB)")
+
+
 def _agent_env() -> None:
     """Settings from `.env` (AWS region, AGENT_MODEL) for the agent, which reads the environment."""
     import logging

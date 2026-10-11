@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "AfterPass",
-    "language": "Language"
+    "language": "Language",
+    "skip": "Skip to the content"
   },
   "mission": {
     "title": "Mission",
@@ -168,7 +169,8 @@
     "places": "Places: © OpenStreetMap contributors, Overture Maps Foundation.",
     "boundaries": "District boundaries: geoBoundaries.",
     "limits": "Burn scars are a lower bound: clouds leave gaps, fields under 0.5 ha are missed, and scars tilled under before the next clear pass are not seen.",
-    "winds": "Weather data by Open-Meteo.com (CC BY 4.0)."
+    "winds": "Weather data by Open-Meteo.com (CC BY 4.0).",
+    "naturalEarth": "Country outlines on the globe: Natural Earth, India point of view."
   },
   "smoke": {
     "title": "Delhi smoke outlook",
@@ -240,5 +242,155 @@
       "smoke_outlook": "Smoke outlook",
       "method_and_limits": "Method"
     }
+  },
+  "nav": {
+    "label": "Screens",
+    "map": "Map",
+    "delhi": "Delhi smoke",
+    "method": "Method",
+    "home": "Start"
+  },
+  "method": {
+    "title": "How AfterPass works, and what it cannot tell you",
+    "lede": "AfterPass finds fields that burned without an official fire detection, and models where their smoke goes. This page explains the method in plain language and shows how it has been checked.",
+    "season": "Results shown are for the {{season}} season, {{from}} to {{to}}.",
+    "source": "Source: {{file}}, generated {{when}}",
+    "schematic": "Schematic. Bar heights and timings are illustrative, not measurements.",
+    "scar": {
+      "heading": "Looking for the scar, not the flame",
+      "body": "A burned field stays black for days. AfterPass reads that char in Sentinel-2 images: 20 m pixels, a pass every 2 to 5 days at about 11:00 IST.",
+      "nbrTitle": "How the Normalized Burn Ratio picks out char",
+      "nbrBody": "Green crop reflects strongly in the near infrared (NIR) and weakly in the shortwave infrared (SWIR). Char does the opposite. NBR = (NIR − SWIR) / (NIR + SWIR) is high for crop, near zero for straw and bare soil, and negative for char.",
+      "crop": "Green crop",
+      "straw": "Harvested straw",
+      "char": "Fresh char",
+      "nir": "NIR",
+      "swir": "SWIR",
+      "nbrHigh": "NBR high",
+      "nbrZero": "NBR near zero",
+      "nbrLow": "NBR negative",
+      "rule": "A cropland pixel is flagged when its NBR is below {{nbr}}, its mid-infrared burn index is above {{mirbi}}, it is darker than {{nir}} in the near infrared, and its NBR fell by more than {{dnbr}} since the last clear image. Patches under 0.5 hectares are dropped."
+    },
+    "persist": {
+      "heading": "Why the scar is still there the next morning",
+      "body": "A stubble fire lasts minutes. The scar lasts until the field is tilled, usually days later. So a morning image can show a fire that was lit, and went out, the evening before.",
+      "pass": "Sentinel-2 pass, about 11:00",
+      "fire": "Fire, late afternoon",
+      "visible": "Scar visible",
+      "tilled": "Field tilled",
+      "day": "Day {{n}}",
+      "seen": "First seen here"
+    },
+    "miss": {
+      "heading": "Why official counts miss evening fires",
+      "body": "Official counts come from satellites that see a fire only while passing overhead, at about 13:30 IST and again after midnight. In the {{season}} season, {{pct}} of the {{count}} official detections in the mapped districts fell between 12:00 and 16:00 IST.",
+      "iforest": "An iFOREST study using geostationary data, which looks every 15 minutes, found that most large farm fires in Punjab in 2024 and 2025 started after 3 PM.",
+      "iforestLink": "Coverage in The Tribune",
+      "caption": "Official detections by hour of day (IST). The shaded band is 15:00 to 19:00."
+    },
+    "match": {
+      "heading": "Matching scars with official detections",
+      "body": "A scar is “in official counts” when a detection lies within 375 m of it (VIIRS) or 1 km (MODIS), dated from one day before the scar's window opens to one day after the scar was first seen. Otherwise it is “not in official counts”. The comparison is made in hectares, because official counts are fire pixels, not fields.",
+      "intent": "“Not in official counts” describes the satellites' timing. It says nothing about anyone's intent."
+    },
+    "check": {
+      "heading": "How the detection has been checked",
+      "calibration": "Calibration against official detections",
+      "calibrationWhere": "{{district}}, {{from}} to {{to}}",
+      "detections": "confident VIIRS detections used",
+      "recall": "of pixels beside them were flagged",
+      "falseFlags": "of clearly unburned pixels were flagged",
+      "caveat1": "The detections are weak labels. A VIIRS pixel is 375 m wide, so many pixels beside a detection did not burn. The share flagged therefore understates how many real burns are found.",
+      "caveat2": "“Clearly unburned” is defined with the same measurements the rule tests, so that rate is optimistic.",
+      "caveat3": "The thresholds come from one district and one season.",
+      "visual": "Visual check",
+      "visualDone": "{{value}} of sampled scars were confirmed as burned by eye (95% interval {{low}} to {{high}}; {{n}} labelled).",
+      "visualPending": "Not done yet. A random sample of 100 scars and 100 other points is waiting to be labelled by eye. Until then the precision of the detections is not known."
+    },
+    "smoke": {
+      "heading": "The smoke model",
+      "body": "Each scar releases smoke between 15:00 and 19:00 IST on the days it could have burned. The smoke rides the wind at 100 m, spreads as it travels and fades over about a day and a half. Over Delhi, the model adds up the smoke above each area every hour and divides by the depth of the air's mixing layer. The result is the Smoke Arrival Index, 0 to 100, where 100 is the 95th percentile of the 2025 season.",
+      "notChemistry": "It is a transport model, not a chemistry model, and it never gives a PM2.5 value.",
+      "pmHeading": "Smoke index against observed PM2.5",
+      "pmBody": "The daily Delhi-wide index compared with PM2.5 from {{stations}} CPCB and DPCC monitors over {{days}} days.",
+      "pearson": "Pearson r",
+      "spearman": "Spearman ρ",
+      "indexAxis": "Smoke Arrival Index (Delhi mean)",
+      "pmAxis": "PM2.5 (µg/m³)",
+      "pmCaveat1": "PM2.5 in Delhi has many sources: traffic, industry, dust, local burning, fireworks. Stubble smoke is one of them.",
+      "pmCaveat2": "The index covers smoke from {{districts}} only.",
+      "pmCaveat3": "Both series depend on the mixing layer: a shallow layer raises the index by construction and also traps PM2.5 from every source. Part of the agreement is shared weather.",
+      "pmCaveat4": "A correlation shows that the two move together. It does not show how much PM2.5 the smoke adds.",
+      "pmMissing": "The PM2.5 comparison has not been run."
+    },
+    "limits": {
+      "heading": "Limits",
+      "l1": "Clouds and haze leave gaps in the images.",
+      "l2": "Sentinel-2 returns every 2 to 5 days. A field tilled under before the next clear image is missed, so burned area is a lower bound.",
+      "l3": "The hour a field was lit is unknown. A scar is dated by the image that first showed it.",
+      "l4": "Fields under 0.5 hectares are missed.",
+      "l5": "A village is the nearest named place within 3 km of a scar, not an administrative boundary.",
+      "l6": "The smoke index is relative, covers only the mapped districts, and is not a health forecast.",
+      "l7": "Results exist only for the districts and seasons that have been processed: {{districts}}."
+    },
+    "ethics": {
+      "heading": "Help, not fines",
+      "body": "AfterPass is for directing help: crop-residue machines, awareness work and support to the villages where burning goes uncounted.",
+      "e1": "Results are shown for villages and districts. There is no farmer-level data.",
+      "e2": "A burn the satellites missed was not concealed by anyone. The wording is “not in official counts”.",
+      "e3": "The smoke outlook is a warning for Delhi residents. For health decisions, use official AQI (CPCB's SAMEER app)."
+    },
+    "credits": {
+      "heading": "Data and credits",
+      "pm25": "PM2.5 observations: CPCB and DPCC monitors, via OpenAQ.",
+      "aqi": "Official AQI (CPCB)"
+    }
+  },
+  "hero": {
+    "headline": "The satellites look at 1:30 PM. The fields burn after.",
+    "sub": "AfterPass finds the fires official counts miss — and tells Delhi when the smoke is coming.",
+    "explore": "Explore the map",
+    "story": "Play the story",
+    "footnote": "An iFOREST study found that most large farm fires in Punjab in 2024 and 2025 started after 3 PM, after the satellites behind the official counts have passed.",
+    "footnoteLink": "Coverage in The Tribune",
+    "passLabel": "13:30 IST · satellite pass",
+    "passNote": "Cyan dots are official fire detections at their real locations.",
+    "afterLabel": "After 3 PM · not seen",
+    "afterNote": "Embers and smoke paths on the globe are an illustration. The map uses real data.",
+    "illustration": "Illustration",
+    "delhi": "Delhi",
+    "stillAlt": "A satellite passes over Punjab at 13:30 IST and records fires. Fires lit later are not seen, and their smoke drifts to Delhi."
+  },
+  "story": {
+    "play": "Play the story",
+    "short": "Story",
+    "pause": "Pause the story",
+    "resume": "Resume the story",
+    "previous": "Previous chapter",
+    "next": "Next chapter",
+    "close": "Leave the story",
+    "chapterOf": "Chapter {{n}} of {{total}}",
+    "present": "Presentation mode (P)",
+    "c1": {
+      "title": "Every afternoon around 1:30, NASA's satellites scan Punjab.",
+      "note": "Cyan dots: official fire detections on {{date}}."
+    },
+    "c2": {
+      "title": "But most large fires now start after 3 PM.",
+      "note": "These embers mark places where burning was found this week. When each field was lit is not known, so their timing is illustrative. iFOREST found most large fires start after 3 PM."
+    },
+    "c3": {
+      "title": "The scars stay.",
+      "note": "{{village}}, {{district}}: Sentinel-2 before and after."
+    },
+    "c4": {
+      "title": "Here's what the official count missed.",
+      "note": "{{share}} of the burned area found this season is not in official counts."
+    },
+    "c5": {
+      "title": "And here's where the smoke goes.",
+      "note": "Modelled smoke from the mapped districts, from {{date}}. A relative index, not PM2.5."
+    },
+    "noRun": "No smoke run is published yet."
   }
 }

@@ -19,6 +19,7 @@ import type {
   SmokeRunSummary,
   Summary,
   TripsFile,
+  Validation,
   Village,
 } from './types'
 
@@ -201,4 +202,17 @@ export function useSmokeRun(summary: SmokeRunSummary | null): SmokeRun | null {
 /** Start downloading a run before the clock reaches it, so playback does not stall. */
 export function prefetchSmokeRun(summary: SmokeRunSummary): void {
   void loadSmokeRun(summary).catch(() => undefined)
+}
+
+/** What the Method page shows: the season summary and the validation report. */
+export function useMethodData(season: number): Loadable<{ summary: Summary; validation: Validation }> {
+  return (
+    useLoad(`method:${season}`, async () => {
+      const [summary, validation] = await Promise.all([
+        getJson<Summary>(`seasons/${season}/summary.json`),
+        getJson<Validation>(`validation/${season}.json`),
+      ])
+      return { summary, validation }
+    }) ?? { status: 'loading' }
+  )
 }

@@ -68,6 +68,9 @@ export function toolDetail(use: ToolUse): string[] {
   return parts
 }
 
+/** The screen a question was asked on. */
+export type Screen = 'map' | 'delhi' | 'method'
+
 /** Actions the Delhi screen can show without leaving it. */
 const DELHI_ACTIONS: UiAction['type'][] = ['play_smoke', 'highlight_locality', 'fly_to']
 
@@ -75,9 +78,9 @@ const DELHI_ACTIONS: UiAction['type'][] = ['play_smoke', 'highlight_locality', '
  * Where a reply's map actions should run. The Delhi screen keeps smoke actions; anything about
  * districts, villages or imagery belongs on the Explorer, so the app goes there first.
  */
-export function actionTarget(actions: UiAction[], screen: 'map' | 'delhi'): 'none' | 'map' | 'delhi' {
+export function actionTarget(actions: UiAction[], screen: Screen): 'none' | 'map' | 'delhi' {
   if (actions.length === 0) return 'none'
-  if (screen === 'map') return 'map'
+  if (screen !== 'delhi') return 'map'
   const smoke = actions.some((action) => action.type === 'play_smoke' || action.type === 'highlight_locality')
   return smoke && actions.every((action) => DELHI_ACTIONS.includes(action.type)) ? 'delhi' : 'map'
 }

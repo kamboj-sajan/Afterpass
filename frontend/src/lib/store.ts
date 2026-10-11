@@ -4,12 +4,14 @@
  */
 
 import { create } from 'zustand'
+import type { Sweep } from '@/layers/official'
 import type { Scope } from './metrics'
 import { runStartMs } from './smoke'
 import { DAY_MS, HOUR_MS, isoWeekOf, istParts, weekRange } from './time'
 
 export type LayerId = 'official' | 'burns' | 'scars' | 'smoke' | 'delhi' | 'districts'
-export type Speed = 1 | 4 | 16
+/** Model hours per second of playback. The quarter speed is used by the story only. */
+export type Speed = 0.25 | 1 | 4 | 16
 
 export interface CameraCommand {
   longitude: number
@@ -43,6 +45,14 @@ interface ExplorerState {
   highlightedDistrict: string | null
   highlightedVillage: string | null
   imageryVillage: string | null
+  /** The satellite-pass sweep in progress, if any. Only the map reads it, every frame. */
+  sweep: Sweep | null
+  /** A day (IST) on which the story draws its illustrative embers, or null. */
+  storyEmbers: string | null
+  /** Raised to make the burn columns grow from zero again. */
+  riseNonce: number
+  /** Where the story holds the before/after slider (0-100), or null when the viewer has it. */
+  imageryWipe: number | null
   /** The Delhi locality whose 48-hour outlook is shown. */
   smokeLocality: string | null
   camera: CameraCommand | null
@@ -61,6 +71,11 @@ interface ExplorerState {
   highlightVillage: (id: string | null) => void
   showLayer: (id: LayerId) => void
   openImagery: (villageId: string | null) => void
+  setSweep: (sweep: Sweep | null) => void
+  setStoryEmbers: (day: string | null) => void
+  raiseColumns: () => void
+  setImageryWipe: (position: number | null) => void
+  setLayers: (layers: Record<LayerId, boolean>) => void
   setSmokeLocality: (id: string | null) => void
   playSmoke: (runId: string, fromHour: number) => void
   runUiActions: (actions: UiAction[]) => void
@@ -80,6 +95,10 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   highlightedDistrict: null,
   highlightedVillage: null,
   imageryVillage: null,
+  sweep: null,
+  storyEmbers: null,
+  riseNonce: 0,
+  imageryWipe: null,
   smokeLocality: null,
   camera: null,
   paletteOpen: false,
@@ -114,6 +133,11 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   highlightVillage: (highlightedVillage) => set({ highlightedVillage }),
   showLayer: (id) => set((state) => ({ layers: { ...state.layers, [id]: true } })),
   openImagery: (imageryVillage) => set({ imageryVillage }),
+  setSweep: (sweep) => set({ sweep }),
+  setStoryEmbers: (storyEmbers) => set({ storyEmbers }),
+  raiseColumns: () => set((state) => ({ riseNonce: state.riseNonce + 1 })),
+  setImageryWipe: (imageryWipe) => set({ imageryWipe }),
+  setLayers: (layers) => set({ layers }),
   setSmokeLocality: (smokeLocality) => set({ smokeLocality }),
   playSmoke: (runId, fromHour) => {
     const start = runStartMs(runId)

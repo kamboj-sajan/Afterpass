@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { ReactCompareSlider } from 'react-compare-slider'
+import { memo, useEffect, useMemo, useState } from 'react'
+import { ReactCompareSlider, useReactCompareSliderContext } from 'react-compare-slider'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/cn'
 import { css, EMBER_CORE } from '@/lib/colors'
@@ -81,8 +81,18 @@ function Frame(props: { src: string; alt: string; label: string; side: 'left' | 
   )
 }
 
+/** Lets the story move the divider by itself. Draws nothing. */
+function AutoWipe() {
+  const { setPosition } = useReactCompareSliderContext()
+  const wipe = useExplorer((s) => s.imageryWipe)
+  useEffect(() => {
+    if (wipe !== null) setPosition(wipe)
+  }, [wipe, setPosition])
+  return null
+}
+
 /** Before/after Sentinel-2 crops for a village, with a draggable divider. */
-export function ImageryDrawer(props: { data: SeasonData }) {
+export const ImageryDrawer = memo(function ImageryDrawer(props: { data: SeasonData }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const season = useExplorer((s) => s.season)
@@ -162,12 +172,15 @@ export function ImageryDrawer(props: { data: SeasonData }) {
                 defaultPosition={50}
                 style={{ width: '100%', height: '100%' }}
                 itemOne={
-                  <Frame
-                    src={file('pre')}
-                    alt={t('imagery.before', { date: formatDate(meta.pre_date, language, true) })}
-                    label={t('imagery.before', { date: formatDate(meta.pre_date, language) })}
-                    side="left"
-                  />
+                  <>
+                    <AutoWipe />
+                    <Frame
+                      src={file('pre')}
+                      alt={t('imagery.before', { date: formatDate(meta.pre_date, language, true) })}
+                      label={t('imagery.before', { date: formatDate(meta.pre_date, language) })}
+                      side="left"
+                    />
+                  </>
                 }
                 itemTwo={
                   <Frame
@@ -209,4 +222,4 @@ export function ImageryDrawer(props: { data: SeasonData }) {
       </div>
     </aside>
   )
-}
+})

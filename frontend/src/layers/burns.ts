@@ -30,15 +30,22 @@ export function prepareBurns(rows: H3Row[], week: string, districts: string[]): 
 /** Metres of column height per burned hectare. A fully burned cell (about 74 ha) is ~3.3 km tall. */
 const METRES_PER_HECTARE = 45
 
-export function burnsLayer(options: { data: BurnCell[]; rise: number; opacity: number; visible: boolean }) {
-  const { data, rise, opacity, visible } = options
+export function burnsLayer(options: {
+  data: BurnCell[]
+  rise: number
+  opacity: number
+  visible: boolean
+  /** Phones draw flat cells: far fewer triangles than columns (brief §12.2). */
+  flat?: boolean
+}) {
+  const { data, rise, opacity, visible, flat = false } = options
   return new H3HexagonLayer<BurnCell>({
     id: 'burns',
     data,
     visible: visible && opacity > 0,
     opacity,
     pickable: true,
-    extruded: true,
+    extruded: !flat,
     coverage: 0.92,
     getHexagon: (d) => d.h3,
     getElevation: (d) => d.burnedHa,

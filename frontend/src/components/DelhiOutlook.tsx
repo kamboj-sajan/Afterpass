@@ -1,5 +1,5 @@
 import { ExternalLink, Maximize2, Search, Wind, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { SmokeOutlookChart } from '@/charts/SmokeOutlook'
@@ -104,13 +104,16 @@ export function LocalityOutlook(props: {
           </div>
         )}
       </div>
-      <SmokeOutlookChart
-        hours={run.sai.hours}
-        sai={locality.sai}
-        nowMs={hour === null ? null : run.sai.hours[hour] * 1000}
-        peak={peak}
-        height={props.chartHeight}
-      />
+      {/* The peak sentence under the chart says in words what the chart shows. */}
+      <div role="img" aria-label={t('smoke.indexShort')}>
+        <SmokeOutlookChart
+          hours={run.sai.hours}
+          sai={locality.sai}
+          nowMs={hour === null ? null : run.sai.hours[hour] * 1000}
+          peak={peak}
+          height={props.chartHeight}
+        />
+      </div>
       <p className="text-text text-xs" data-testid="smoke-peak">
         {peak === null
           ? t('smoke.noPeak')
@@ -167,7 +170,11 @@ export function SaiInfo(props: { run: SmokeRun }) {
 }
 
 /** The 48-hour smoke outlook card in the Explorer (brief §12.4), following the global clock. */
-export function DelhiOutlook(props: { run: SmokeRun; className?: string; onClose?: () => void }) {
+export const DelhiOutlook = memo(function DelhiOutlook(props: {
+  run: SmokeRun
+  className?: string
+  onClose?: () => void
+}) {
   const { run } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -243,4 +250,4 @@ export function DelhiOutlook(props: { run: SmokeRun; className?: string; onClose
       <SaiExplainer />
     </section>
   )
-}
+})

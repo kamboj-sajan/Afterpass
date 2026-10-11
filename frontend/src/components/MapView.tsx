@@ -7,7 +7,8 @@ import { DeckOverlay } from '@/components/DeckOverlay'
 import { burnsLayer, prepareBurns, type BurnCell } from '@/layers/burns'
 import { delhiLayer, prepareDelhi, type DelhiCell } from '@/layers/delhi'
 import { districtBounds, districtLayers, type DistrictFeature } from '@/layers/districts'
-import { officialLayer, prepareOfficial, type OfficialDatum, type Sweep } from '@/layers/official'
+import { embersLayer, prepareEmbers } from '@/layers/embers'
+import { officialLayer, prepareOfficial, type OfficialDatum } from '@/layers/official'
 import { scanLayer, villageLayers } from '@/layers/overlays'
 import { scarLayers, type ScarFeature } from '@/layers/scars'
 import { TOOLTIP_STYLE } from '@/layers/tooltip'
@@ -17,6 +18,7 @@ import { useScars } from '@/lib/data'
 import { formatDate, formatDateTime, formatHectares, formatShare, formatTime } from '@/lib/format'
 import { useReducedMotion, useRise } from '@/lib/motion'
 import { hourIndex, saiLevel } from '@/lib/smoke'
+import { usePhone } from '@/lib/screen'
 import { useExplorer } from '@/lib/store'
 import { weekRange } from '@/lib/time'
 import type { SeasonData, SmokeRun } from '@/lib/types'
@@ -55,11 +57,12 @@ function panelPadding(): { top: number; bottom: number; left: number; right: num
   }
 }
 
-export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: SmokeRun | null }) {
-  const { data, sweep, smoke } = props
+export function MapView(props: { data: SeasonData; smoke: SmokeRun | null }) {
+  const { data, smoke } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const reduced = useReducedMotion()
+  const phone = usePhone()
   const mapRef = useRef<MapRef>(null)
 
   const season = useExplorer((s) => s.season)
@@ -67,6 +70,9 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
   const districts = useExplorer((s) => s.districts)
   const layers = useExplorer((s) => s.layers)
   const clockMs = useExplorer((s) => s.clockMs)
+  const sweep = useExplorer((s) => s.sweep)
+  const storyEmbers = useExplorer((s) => s.storyEmbers)
+  const riseNonce = useExplorer((s) => s.riseNonce)
   const camera = useExplorer((s) => s.camera)
   const highlightedDistrict = useExplorer((s) => s.highlightedDistrict)
   const highlightedVillage = useExplorer((s) => s.highlightedVillage)
@@ -99,14 +105,16 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
     () => (week === null ? [] : prepareBurns(data.cells.items, week, districts)),
     [data.cells.items, week, districts],
   )
-  const rise = useRise(`${week}|${districts.join(',')}`, 1200)
+  const rise = useRise(`${week}|${districts.join(',')}|${riseNonce}`, 1200)
+  const embers = useMemo(() => (storyEmbers === null ? [] : prepareEmbers(cells)), [storyEmbers, cells])
 
   const trails = useMemo(() => (smoke === null ? [] : prepareSmoke(smoke.trips, isSmallScreen())), [smoke])
   const smokeHour = smoke === null ? 0 : hourIndex(smoke.summary, clockMs)
   const delhiCells = useMemo(() => (smoke === null ? [] : prepareDelhi(smoke.sai, smokeHour)), [smoke, smokeHour])
 
   // Scar files are large, so only the districts on screen are loaded, and only when zoomed in.
-  const scarsOn = layers.scars && zoom >= SCAR_MIN_ZOOM
+  // Phones wait one zoom level longer for the outlines and draw flat cells instead of columns.
+  const scarsOn = layers.scars && zoom >= (phone ? SCAR_MIN_ZOOM + 1 : SCAR_MIN_ZOOM)
   const inView = useMemo(
     () =>
       data.districts.features
@@ -161,7 +169,7 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
   // Later layers draw over earlier ones.
   const deckLayers: Layer[] = [
     districtParts.outlines,
-    burnsLayer({ data: cells, rise, opacity: columnOpacity(zoom), visible: layers.burns }),
+    burnsLayer({ data: cells, rise, opacity: columnOpacity(zoom), visible: layers.burns, flat: phone }),
     ...scarLayers({ collections: scars, clockMs, weekStart, visible: scarsOn }),
     delhiLayer({ data: delhiCells, visible: layers.delhi && smoke !== null }),
     smokeLayer({
@@ -172,6 +180,7 @@ export function MapView(props: { data: SeasonData; sweep: Sweep | null; smoke: S
     }),
     scanLayer(dataBounds, sweep?.progress ?? null),
     officialLayer({ data: official, clockMs, weekStart, sweep, visible: layers.official }),
+    embersLayer({ data: embers, clockMs, day: storyEmbers }),
     districtParts.labels,
     ...villageLayers(village),
   ]

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Images } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { HourHistogram } from '@/charts/HourHistogram'
@@ -15,7 +16,7 @@ const VILLAGE_COUNT = 8
 /** Zoom at which a village's scars are visible. */
 const VILLAGE_ZOOM = 13.2
 
-export function GroundTruthPanel(props: { data: SeasonData }) {
+export const GroundTruthPanel = memo(function GroundTruthPanel(props: { data: SeasonData }) {
   const { data } = props
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -97,7 +98,9 @@ export function GroundTruthPanel(props: { data: SeasonData }) {
 
         <div>
           <SectionLabel>{t('chart.weekly')}</SectionLabel>
-          <WeeklyArea data={weeklySeries(data.summary, districts)} selectedWeek={week} />
+          <div role="img" aria-label={t('chart.weekly')}>
+            <WeeklyArea data={weeklySeries(data.summary, districts)} selectedWeek={week} />
+          </div>
           <div className="text-text-2 mt-1 flex gap-3 text-[10px]">
             <span className="inline-flex items-center gap-1.5">
               <span className="bg-official size-2 rounded-full" />
@@ -112,7 +115,9 @@ export function GroundTruthPanel(props: { data: SeasonData }) {
 
         <div>
           <SectionLabel>{t('chart.hours')}</SectionLabel>
-          <HourHistogram hours={hourHistogram(data.summary, districts)} />
+          <div role="img" aria-label={`${t('chart.hours')}. ${t('chart.hoursNote')}`}>
+            <HourHistogram hours={hourHistogram(data.summary, districts)} />
+          </div>
           <p className="text-text-2 mt-1 text-[10px] leading-snug">{t('chart.hoursNote')}</p>
         </div>
 
@@ -178,4 +183,4 @@ export function GroundTruthPanel(props: { data: SeasonData }) {
       </div>
     </Panel>
   )
-}
+})

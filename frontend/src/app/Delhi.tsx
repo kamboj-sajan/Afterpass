@@ -5,10 +5,12 @@ import { AskButton, ChatDrawer } from '@/components/ChatDrawer'
 import { DelhiMap } from '@/components/DelhiMap'
 import { DelhiPanel } from '@/components/DelhiPanel'
 import { DelhiTimeline } from '@/components/DelhiTimeline'
+import { PhoneSheet } from '@/components/PhoneSheet'
 import { FpsMeter, showFps } from '@/components/FpsMeter'
 import { css, receptorGradient, SMOKE, SMOKE_FRESH } from '@/lib/colors'
 import { prefetchSmokeRun, useSmokeIndex, useSmokeRun } from '@/lib/data'
 import { useDelhi } from '@/lib/delhiStore'
+import { usePhone } from '@/lib/screen'
 import { defaultLocality, peakRun, peakWindow, PREFERRED_LOCALITY } from '@/lib/smoke'
 import { HOUR_MS } from '@/lib/time'
 
@@ -125,15 +127,51 @@ export function Delhi() {
   }, [runs, chosenId])
 
   useDelhiPlayback()
+  const phone = usePhone()
+  const { t } = useTranslation()
 
   if (run === null || shownId !== run.summary.run_id) return <Waiting empty={index !== null && runs.length === 0} />
 
   const locality =
     run.localities.find((item) => item.id === localityId) ?? defaultLocality(run.localities, PREFERRED_LOCALITY)
   const peak = locality === null ? null : peakWindow(run.sai.hours, locality.sai)
+  const open = (next: { run_id: string }) => useDelhi.getState().wantRun(next.run_id)
+
+  if (phone) {
+    return (
+      <main
+        id="main"
+        className="absolute inset-0 [--edge:8px] [--panel-left:0px] [--panel-right:0px] [--timeline-h:176px]"
+        data-screen="delhi"
+        data-testid="delhi-screen"
+      >
+        <DelhiMap run={run} locality={locality} />
+        <PhoneSheet
+          title={t('delhi.title')}
+          bar={
+            <div className="flex items-stretch gap-2">
+              <div className="min-w-0 flex-1">
+                <DelhiTimeline peak={peak} />
+              </div>
+              <AskButton />
+            </div>
+          }
+          tabs={[
+            {
+              id: 'outlook',
+              label: t('delhi.title'),
+              content: <DelhiPanel run={run} runs={runs} locality={locality} onOpen={open} />,
+            },
+          ]}
+        />
+        <ChatDrawer screen="delhi" />
+      </main>
+    )
+  }
 
   return (
-    <div
+    <main
+      id="main"
       className="absolute inset-0 [--panel-left:380px] [--panel-right:0px]"
       data-screen="delhi"
       data-testid="delhi-screen"
@@ -142,12 +180,7 @@ export function Delhi() {
       {/* Panels float over the map; the wrapper ignores the pointer so the map stays draggable. */}
       <div className="pointer-events-none absolute inset-0 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-(--edge) p-(--edge)">
         <div className="pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full">
-          <DelhiPanel
-            run={run}
-            runs={runs}
-            locality={locality}
-            onOpen={(next) => useDelhi.getState().wantRun(next.run_id)}
-          />
+          <DelhiPanel run={run} runs={runs} locality={locality} onOpen={open} />
         </div>
         <div className="flex items-start justify-end">
           <Legend />
@@ -161,6 +194,6 @@ export function Delhi() {
       </div>
       <ChatDrawer screen="delhi" />
       {showFps && <FpsMeter />}
-    </div>
+    </main>
   )
 }
