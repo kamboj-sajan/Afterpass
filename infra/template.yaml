@@ -1,0 +1,301 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  AfterPass (brief section 11): published data on S3 behind CloudFront, the agent, the alerts
+  and the live pipeline. Everything is on demand; nothing runs when nobody is using it.
+
+Resources:
+  # --- Storage and delivery (11.1) ---------------------------------------------------------
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          # Old versions of republished files, and cached downloads, are not kept for long.
+          - Id: expire-old-versions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 14
+          - Id: expire-pipeline-cache
+            Status: Enabled
+            Prefix: cache/s2/
+            ExpirationInDays: 45
+
+  DataOriginAccess:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-data
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # JSON changes when the pipeline runs: five minutes. Imagery never changes once made: a day.
+  DataCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-json-5min
+        DefaultTTL: 300
+        MinTTL: 0
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  ImageryCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-imagery-1day
+        DefaultTTL: 86400
+        MinTTL: 0
+        MaxTTL: 86400
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  DataCors:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub ${AWS::StackName}-cors
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items: ['*']
+          AccessControlAllowMethods:
+            Items: [GET, HEAD]
+          AccessControlAllowOrigins:
+            # The app's own address, and the local dev and preview servers.
+            Items:
+              - !Sub https://main.${WebApp.DefaultDomain}
+              - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://127.0.0.1:4173
+          AccessControlMaxAgeSec: 86400
+          OriginOverride: true
+
+  DataDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: AfterPass published data (public/ prefix of the data bucket)
+        HttpVersion: http2and3
+        # Includes the edge locations in India.
+        PriceClass: PriceClass_200
+        Origins:
+          - Id: data
+            DomainName: !GetAtt DataBucket.RegionalDomainName
+            OriginPath: /public
+            OriginAccessControlId: !GetAtt DataOriginAccess.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: data
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: !Ref DataCachePolicy
+          ResponseHeadersPolicyId: !Ref DataCors
+        CacheBehaviors:
+          - PathPattern: imagery/*
+            TargetOriginId: data
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            Compress: true
+            CachePolicyId: !Ref ImageryCachePolicy
+            ResponseHeadersPolicyId: !Ref DataCors
+
+  DataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFrontReadsPublicPrefix
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${DataBucket.Arn}/public/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${DataDistribution}
+
+  # --- Tables (11.5) -----------------------------------------------------------------------
+
+  StatsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: afterpass-stats
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: afterpass-ratelimit
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires
+        Enabled: true
+
+  # --- Agent (11.7) -----------------------------------------------------------------------
+
+  AgentFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Description: Ask AfterPass - answers from the published data and returns map actions
+      CodeUri: ../backend
+      Handler: agent.handler.lambda_handler
+      Runtime: python3.12
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 60
+      # The account allows 10 concurrent executions in all, so none can be reserved for this
+      # function; that account limit is what caps a burst of questions.
+      Environment:
+        Variables:
+          AFTERPASS_DATA: !Sub https://${DataDistribution.DomainName}
+          AGENT_MODEL: mantle:openai.gpt-oss-120b
+          RATE_LIMIT_TABLE: !Ref RateLimitTable
+          RATE_LIMIT_SALT: !Ref AWS::StackId
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - !Sub https://main.${WebApp.DefaultDomain}
+            - http://localhost:5173
+            - http://127.0.0.1:5173
+            - http://127.0.0.1:4173
+          AllowMethods: [POST]
+          AllowHeaders: [content-type]
+          MaxAge: 86400
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: AskTheModel
+              Effect: Allow
+              Action:
+                # The agent signs a short-lived bearer token with this role and calls
+                # Bedrock's OpenAI-compatible endpoint with it.
+                - bedrock-mantle:CreateInference
+                - bedrock-mantle:CallWithBearerToken
+              Resource: '*'
+            - Sid: CountQuestions
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt RateLimitTable.Arn
+
+  AgentLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AgentFunction}
+      RetentionInDays: 14
+
+  # --- Frontend hosting and maps (11.9, 11.10) -------------------------------------------
+
+  # No repository is connected: `make deploy-web` uploads the built frontend.
+  WebApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: afterpass
+      Platform: WEB
+      CustomRules:
+        # A single-page app: any path that is not a file is served by index.html.
+        - Source: </^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|webm)$)([^.]+$)/>
+          Target: /index.html
+          Status: '200'
+
+  WebBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt WebApp.AppId
+      BranchName: main
+      Stage: PRODUCTION
+      EnableAutoBuild: false
+
+  # Shipped inside the frontend, so it is limited to map tiles and to the app's own addresses.
+  MapsKey:
+    Type: AWS::Location::APIKey
+    Properties:
+      KeyName: afterpass-maps
+      Description: Basemap tiles for the AfterPass frontend
+      NoExpiry: true
+      Restrictions:
+        AllowActions:
+          - geo-maps:*
+        AllowResources:
+          - !Sub arn:aws:geo-maps:${AWS::Region}::provider/default
+        AllowReferers:
+          - !Sub https://main.${WebApp.DefaultDomain}/*
+          - http://localhost:5173/*
+          - http://127.0.0.1:5173/*
+          - http://127.0.0.1:4173/*
+
+Outputs:
+  WebUrl:
+    Description: The public address of the app
+    Value: !Sub https://main.${WebApp.DefaultDomain}
+  WebAppId:
+    Value: !GetAtt WebApp.AppId
+  MapsKeyName:
+    Value: !Ref MapsKey
+  AgentUrl:
+    Description: The agent's endpoint (VITE_AGENT_URL)
+    Value: !GetAtt AgentFunctionUrl.FunctionUrl
+  DataBucketName:
+    Value: !Ref DataBucket
+  DataUrl:
+    Description: Base URL of the published data (VITE_DATA_BASE_URL)
+    Value: !Sub https://${DataDistribution.DomainName}
+  DistributionId:
+    Value: !Ref DataDistribution

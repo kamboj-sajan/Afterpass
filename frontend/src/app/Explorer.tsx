@@ -117,7 +117,8 @@ function LoadError() {
 function useSmokeForClock(season: number): { run: SmokeRun | null; state: 'none' | 'outside' | 'ready' } {
   const index = useSmokeIndex()
   const runs = useMemo(
-    () => (index === null ? [] : index.runs.filter((r) => r.kind === 'replay' && r.run_id.startsWith(`${season}-`))),
+    // A replay has a run for each of its days; a live season has forecasts, named by when they start.
+    () => (index === null ? [] : index.runs.filter((r) => r.run_id.startsWith(`${season}-`))),
     [index, season],
   )
   // A string selector: the Explorer re-renders when the run changes, not on every frame.

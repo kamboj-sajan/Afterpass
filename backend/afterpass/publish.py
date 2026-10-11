@@ -19,7 +19,7 @@ import geopandas as gpd
 import pandas as pd
 
 from afterpass import aggregate, burns, places, sentinel
-from afterpass.config import PUBLIC_DIR, VALIDATION_DIR
+from afterpass.config import PUBLIC_DIR, SEASONS, VALIDATION_DIR
 from afterpass.pipeline import Replay
 
 COORDINATE_DECIMALS = 5  # about 1 m
@@ -86,6 +86,27 @@ def metadata(replays: list[Replay], overture_release: str) -> dict:
     }
 
 
+def latest_with(entry: dict, meta: dict) -> dict:
+    """`latest.json` after publishing one season: every published season, newest on top.
+
+    The top-level `season`, `run_id`, `data_through` and `districts` describe the newest
+    season; `seasons` holds the same for each one, keyed by year.
+    """
+    path = PUBLIC_DIR / "latest.json"
+    earlier = json.loads(path.read_text()) if path.exists() else {}
+    seasons = dict(earlier.get("seasons", {}))
+    if not seasons and "season" in earlier:
+        # A file written before seasons were listed: keep what it described.
+        keys = ("season", "run_id", "data_through", "districts", "generated_at")
+        seasons[str(earlier["season"])] = {key: earlier[key] for key in keys} | {
+            "mode": "live" if SEASONS[earlier["season"]][1] is None else "replay"
+        }
+    seasons[str(entry["season"])] = entry
+    newest = seasons[max(seasons, key=int)]
+    top = {key: newest[key] for key in ("season", "run_id", "data_through", "districts")}
+    return {**top, "seasons": dict(sorted(seasons.items())), **meta}
+
+
 IMAGERY_INDEX_KEYS = ("village_id", "name", "district", "pre_date", "post_date")
 
 
@@ -127,19 +148,16 @@ def publish_local(replays: list[Replay], season: int, overture_release: str) -> 
         )
 
     data_through = max(row["date"] for r in replays for row in r.info["sentinel2"])
-    written.append(
-        _write(
-            PUBLIC_DIR / "latest.json",
-            {
-                "season": season,
-                "run_id": f"{season}-{generated_at:%Y%m%dT%H%M%SZ}",
-                "data_through": data_through,
-                "districts": [r.district.name for r in replays],
-                **meta,
-            },
-            pretty=True,
-        )
-    )
+    entry = {
+        "season": season,
+        # A season with no last day is still running.
+        "mode": "live" if SEASONS[season][1] is None else "replay",
+        "run_id": f"{season}-{generated_at:%Y%m%dT%H%M%SZ}",
+        "data_through": data_through,
+        "districts": [r.district.name for r in replays],
+        "generated_at": meta["generated_at"],
+    }
+    written.append(_write(PUBLIC_DIR / "latest.json", latest_with(entry, meta), pretty=True))
     written.append(
         _write(
             season_dir / "summary.json",

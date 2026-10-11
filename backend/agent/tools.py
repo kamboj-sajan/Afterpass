@@ -51,17 +51,27 @@ def _season(season: int) -> tuple[dict, dict] | None:
 
 
 def _no_season(season: int) -> dict:
-    return _error(f"No data is published for the {season} season.", published_seasons=[2025])
+    try:
+        latest = data.load("latest.json")
+    except data.DataError:
+        latest = {}
+    published = sorted(int(year) for year in latest.get("seasons", {})) or [latest.get("season")]
+    return _error(f"No data is published for the {season} season.", published_seasons=published)
 
 
 def _window(summary: dict, latest: dict) -> dict:
-    return {
+    # `latest.json` lists every season; older files describe one season at the top level.
+    entry = latest.get("seasons", {}).get(str(summary["season"]), latest)
+    window = {
         "season": summary["season"],
         "from": summary["window"][0],
         "to": summary["window"][1],
-        "data_through": latest.get("data_through"),
+        "data_through": entry.get("data_through"),
         "sources": SOURCES,
     }
+    if entry.get("mode") == "live":
+        window["note"] = "This season is still running; the numbers grow as new images arrive."
+    return window
 
 
 def _pct(share: float | None) -> float | None:

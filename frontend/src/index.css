@@ -2,7 +2,8 @@
 
 @theme {
   --color-bg: #05070d;
-  --color-panel: rgba(14, 18, 30, 0.74);
+  /* Opaque enough that basemap labels under a panel do not compete with its text. */
+  --color-panel: rgba(14, 18, 30, 0.88);
   --color-panel-solid: #0e121e;
   --color-hairline: rgba(255, 255, 255, 0.08);
   --color-ember: #ff6b2c;

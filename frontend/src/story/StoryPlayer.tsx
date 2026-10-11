@@ -13,6 +13,7 @@ import { CHAPTERS, dueCues, storyContext } from './chapters'
 
 const CONTROL =
   'focus-ring text-text-2 inline-flex size-8 cursor-pointer items-center justify-center rounded-full hover:text-white disabled:cursor-not-allowed disabled:opacity-35'
+const STORY_SEASON = 2025
 /** The before/after divider sweeps across and back while the "scars stay" chapter plays. */
 const WIPE = { from: 6, to: 24, low: 14, high: 88 }
 
@@ -55,7 +56,8 @@ export function StoryPlayer(props: { data: SeasonData; runs: SmokeRunSummary[] }
   const context = useMemo(() => {
     const names = data.summary.districts.map((d) => d.district)
     const week = peakWeek(data.summary, names)
-    return week === null ? null : storyContext(data, week, weekDates(week), runs, reduced)
+    if (week === null || data.summary.season !== STORY_SEASON) return null
+    return storyContext(data, week, weekDates(week), runs, reduced)
   }, [data, runs, reduced])
 
   // What the viewer had on screen comes back when the story ends.
@@ -64,6 +66,8 @@ export function StoryPlayer(props: { data: SeasonData; runs: SmokeRunSummary[] }
   useEffect(() => {
     if (!running) return
     const explorer = useExplorer.getState()
+    // The story is told with the finished replay season, whatever was on screen.
+    if (explorer.season !== STORY_SEASON) explorer.setSeason(STORY_SEASON)
     before.current = { layers: explorer.layers, scope: explorer.scope }
     return () => {
       const now = useExplorer.getState()

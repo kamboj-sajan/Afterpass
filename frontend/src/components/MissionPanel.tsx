@@ -73,6 +73,9 @@ function LayerLegend(props: { id: LayerId }) {
   return null
 }
 
+/** The seasons the app knows: a finished replay and the season running now. */
+const SEASONS = [2025, 2026]
+
 /** Layers that need a published smoke run. */
 const SMOKE_LAYERS: LayerId[] = ['smoke', 'delhi']
 
@@ -87,7 +90,12 @@ export const MissionPanel = memo(function MissionPanel(props: {
   const week = useExplorer((s) => s.week)
   const districts = useExplorer((s) => s.districts)
   const layers = useExplorer((s) => s.layers)
+  const setSeason = useExplorer((s) => s.setSeason)
   const setWeek = useExplorer((s) => s.setWeek)
+  // Files written before seasons were listed describe a single season at the top level.
+  const published: Record<string, { data_through: string } | undefined> = data.latest.seasons ?? {
+    [String(data.latest.season)]: data.latest,
+  }
   const setDistricts = useExplorer((s) => s.setDistricts)
   const toggleLayer = useExplorer((s) => s.toggleLayer)
   const setPaletteOpen = useExplorer((s) => s.setPaletteOpen)
@@ -129,19 +137,22 @@ export const MissionPanel = memo(function MissionPanel(props: {
           <Segmented
             label={t('mission.season')}
             value={String(season)}
-            onChange={() => undefined}
-            options={[
-              { value: '2025', label: t('mission.replay', { year: 2025 }) },
-              {
-                value: '2026',
-                label: t('mission.live', { year: 2026 }),
-                disabled: true,
-                title: t('mission.liveUnavailable'),
-              },
-            ]}
+            onChange={(value) => setSeason(Number(value))}
+            options={SEASONS.map((year) => {
+              const entry = published[String(year)]
+              const live = year === SEASONS[SEASONS.length - 1]
+              return {
+                value: String(year),
+                label: t(live ? 'mission.live' : 'mission.replay', { year }),
+                disabled: entry === undefined,
+                title: entry === undefined ? t('mission.liveUnavailable') : undefined,
+              }
+            })}
           />
           <p className="text-text-2 mt-1.5 text-[11px]">
-            {t('mission.dataThrough', { date: formatDate(data.latest.data_through, language, true) })}
+            {t('mission.dataThrough', {
+              date: formatDate(published[String(season)]?.data_through ?? data.latest.data_through, language, true),
+            })}
           </p>
         </div>
 

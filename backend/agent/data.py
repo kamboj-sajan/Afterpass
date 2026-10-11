@@ -1,7 +1,8 @@
 """Reads the public data files (brief §9.2) from a folder or a base URL, cached in memory.
 
 `AFTERPASS_DATA` names the source: a folder such as `data/public`, or the CloudFront URL of
-the `public/` prefix. `AFTERPASS_METHOD` names the method document.
+the `public/` prefix. `AFTERPASS_METHOD` names the method document; without it, the repository's
+`docs/METHOD.md` is used, or the copy published next to the data.
 """
 
 from __future__ import annotations
@@ -48,10 +49,14 @@ def load(path: str) -> dict:
 
 
 def method_text() -> str:
-    path = Path(os.environ.get("AFTERPASS_METHOD", str(DEFAULT_METHOD)))
-    if not path.exists():
+    """The method document: a local file if there is one, else `METHOD.md` from the data source."""
+    named = os.environ.get("AFTERPASS_METHOD")
+    path = Path(named) if named else DEFAULT_METHOD
+    if path.exists():
+        return path.read_text()
+    if named:
         raise DataError("The method document is not available.")
-    return path.read_text()
+    return _read(source(), "METHOD.md")
 
 
 def clear_cache() -> None:

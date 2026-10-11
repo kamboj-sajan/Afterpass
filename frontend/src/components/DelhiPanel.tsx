@@ -1,13 +1,14 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useDelhi } from '@/lib/delhiStore'
-import { formatDateRange } from '@/lib/format'
+import { formatDateRange, formatDateTime } from '@/lib/format'
 import { cityStats, hourIndex, peakRun } from '@/lib/smoke'
 import { HOUR_MS, istParts } from '@/lib/time'
 import type { SmokeLocality, SmokeRun, SmokeRunSummary } from '@/lib/types'
 import { LevelBadge, LocalityOutlook, LocalitySearch, SaiExplainer, SaiInfo } from './DelhiOutlook'
 import { NavLinks } from './NavLinks'
 import { Panel, SectionLabel } from './ui/Panel'
+import { Segmented } from './ui/Segmented'
 
 const STEP_BUTTON =
   'focus-ring border-hairline text-text inline-flex size-7 cursor-pointer items-center justify-center rounded-md border hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40'
@@ -23,10 +24,13 @@ function sourceDistricts(run: SmokeRun): string | null {
 export function DelhiPanel(props: {
   run: SmokeRun
   runs: SmokeRunSummary[]
+  /** The newest live forecast, if one is published. */
+  forecast: SmokeRunSummary | null
   locality: SmokeLocality | null
   onOpen: (run: SmokeRunSummary) => void
 }) {
-  const { run, runs, locality } = props
+  const { run, runs, forecast, locality } = props
+  const live = run.summary.kind === 'live'
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const setLocality = useDelhi((s) => s.setLocality)
@@ -74,42 +78,68 @@ export function DelhiPanel(props: {
 
         <div>
           <SectionLabel>{t('delhi.window')}</SectionLabel>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className={STEP_BUTTON}
-              disabled={earlier === null}
-              onClick={() => earlier && props.onOpen(earlier)}
-              aria-label={t('delhi.previousDay')}
-              title={t('delhi.previousDay')}
-            >
-              <ChevronLeft size={15} aria-hidden />
-            </button>
-            <div className="min-w-0 flex-1 text-center">
-              <p className="text-text text-sm font-semibold" data-testid="delhi-window">
-                {formatDateRange(firstDay, lastDay, language)} {firstDay.slice(0, 4)}
+          {forecast !== null && peak !== null && (
+            <Segmented
+              className="mb-2"
+              label={t('delhi.window')}
+              value={live ? 'live' : 'replay'}
+              onChange={(value) => props.onOpen(value === 'live' ? forecast : peak)}
+              options={[
+                { value: 'live', label: t('delhi.forecast') },
+                {
+                  value: 'replay',
+                  label: t('delhi.replayBadge', { year: istParts(peak.start * 1000).date.slice(0, 4) }),
+                },
+              ]}
+            />
+          )}
+          {live ? (
+            <div data-testid="delhi-window">
+              <p className="text-text text-sm font-semibold">
+                {t('delhi.forecastFrom', { when: formatDateTime(start, language) })}
               </p>
-              <p className="text-text-2 text-[11px]">{t('delhi.windowFrom')}</p>
+              <p className="text-text-2 mt-1 text-[11px] leading-snug">{t('smoke.persistence')}</p>
             </div>
-            <button
-              type="button"
-              className={STEP_BUTTON}
-              disabled={later === null}
-              onClick={() => later && props.onOpen(later)}
-              aria-label={t('delhi.nextDay')}
-              title={t('delhi.nextDay')}
-            >
-              <ChevronRight size={15} aria-hidden />
-            </button>
-          </div>
-          {peak !== null && peak.run_id !== run.summary.run_id && (
-            <button
-              type="button"
-              onClick={() => props.onOpen(peak)}
-              className="focus-ring text-official mt-2 cursor-pointer text-xs underline-offset-2 hover:underline"
-            >
-              {t('delhi.seasonPeak')}
-            </button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={STEP_BUTTON}
+                  disabled={earlier === null}
+                  onClick={() => earlier && props.onOpen(earlier)}
+                  aria-label={t('delhi.previousDay')}
+                  title={t('delhi.previousDay')}
+                >
+                  <ChevronLeft size={15} aria-hidden />
+                </button>
+                <div className="min-w-0 flex-1 text-center">
+                  <p className="text-text text-sm font-semibold" data-testid="delhi-window">
+                    {formatDateRange(firstDay, lastDay, language)} {firstDay.slice(0, 4)}
+                  </p>
+                  <p className="text-text-2 text-[11px]">{t('delhi.windowFrom')}</p>
+                </div>
+                <button
+                  type="button"
+                  className={STEP_BUTTON}
+                  disabled={later === null}
+                  onClick={() => later && props.onOpen(later)}
+                  aria-label={t('delhi.nextDay')}
+                  title={t('delhi.nextDay')}
+                >
+                  <ChevronRight size={15} aria-hidden />
+                </button>
+              </div>
+              {peak !== null && peak.run_id !== run.summary.run_id && (
+                <button
+                  type="button"
+                  onClick={() => props.onOpen(peak)}
+                  className="focus-ring text-official mt-2 cursor-pointer text-xs underline-offset-2 hover:underline"
+                >
+                  {t('delhi.seasonPeak')}
+                </button>
+              )}
+            </>
           )}
         </div>
 

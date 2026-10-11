@@ -34,15 +34,15 @@ def season_window(season: int) -> tuple[date, date]:
     return first, last or datetime.now(UTC).date()
 
 
-# Fast, unsigned COG reads from AWS Open Data (brief §5.2).
+# Fast, unsigned COG reads from AWS Open Data (brief §5.2). Every asset is read over HTTPS, so
+# no region is set here: AWS_REGION belongs to AfterPass's own resources (Sydney), not to the
+# open-data buckets (us-west-2).
 GDAL_ENV: dict[str, str] = {
     "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
     "GDAL_HTTP_MULTIPLEX": "YES",
     "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
     "VSI_CACHE": "TRUE",
     "AWS_NO_SIGN_REQUEST": "YES",
-    # The region of the open-data buckets being read, not of AfterPass's own resources.
-    "AWS_REGION": "us-west-2",
     "GDAL_HTTP_MAX_RETRY": "5",
     "GDAL_HTTP_RETRY_DELAY": "2",
     # GDAL waits forever on a dead connection unless told otherwise. Drop a request that

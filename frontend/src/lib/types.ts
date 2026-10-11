@@ -58,11 +58,25 @@ export interface Summary extends Meta {
   limitations: string[]
 }
 
+/** One published season, as `latest.json` lists it. */
+export interface SeasonEntry {
+  season: number
+  /** A replay is a finished season; a live season is still running. */
+  mode: 'replay' | 'live'
+  run_id: string
+  data_through: string
+  districts: string[]
+  generated_at: string
+}
+
 export interface Latest extends Meta {
+  /** The newest published season, described by the four fields below. */
   season: number
   run_id: string
   data_through: string
   districts: string[]
+  /** Every published season by year. Missing in files written before seasons were listed. */
+  seasons?: Record<string, SeasonEntry>
 }
 
 export interface Items<T> extends Meta {

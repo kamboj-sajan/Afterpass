@@ -8,6 +8,7 @@ here never include the URL.
 from __future__ import annotations
 
 import io
+import time
 from datetime import UTC, date, datetime, timedelta
 
 import geopandas as gpd
@@ -34,6 +35,8 @@ KEEP = [
 ]
 # NRT files for the last few days are still being filled in, so those chunks are not cached.
 NRT_SETTLE_DAYS = 2
+TRIES = 4
+RETRY_WAIT_S = 5.0
 
 
 class FirmsError(RuntimeError):
@@ -43,13 +46,19 @@ class FirmsError(RuntimeError):
 def _get(path: str) -> str:
     """GET a FIRMS API path that follows the key. Errors never echo the URL (it holds the key)."""
     key = settings().require_firms_key()
-    try:
-        resp = httpx.get(f"{API}/{path.format(key=key)}", timeout=120)
-    except httpx.HTTPError as exc:
-        raise FirmsError(f"FIRMS request failed: {type(exc).__name__}") from None
-    if resp.status_code != 200:
-        raise FirmsError(f"FIRMS returned HTTP {resp.status_code}")
-    return resp.text
+    for attempt in range(TRIES):
+        try:
+            resp = httpx.get(f"{API}/{path.format(key=key)}", timeout=120)
+        except httpx.HTTPError as exc:
+            # A dropped connection is common; a few spaced retries usually get through.
+            if attempt == TRIES - 1:
+                raise FirmsError(f"FIRMS request failed: {type(exc).__name__}") from None
+            time.sleep(RETRY_WAIT_S * (attempt + 1))
+            continue
+        if resp.status_code != 200:
+            raise FirmsError(f"FIRMS returned HTTP {resp.status_code}")
+        return resp.text
+    raise FirmsError("FIRMS request failed.")
 
 
 def data_availability() -> dict[str, tuple[date, date]]:

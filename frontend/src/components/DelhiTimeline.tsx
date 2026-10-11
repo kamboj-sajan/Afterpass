@@ -3,9 +3,9 @@ import { Slider } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import { css, receptorColor } from '@/lib/colors'
 import { useDelhi, type DelhiSpeed } from '@/lib/delhiStore'
-import { formatDate, formatDateTime } from '@/lib/format'
+import { formatDate, formatDateTime, formatTime } from '@/lib/format'
 import type { PeakWindow } from '@/lib/smoke'
-import { HOUR_MS } from '@/lib/time'
+import { HOUR_MS, istParts } from '@/lib/time'
 import { Segmented } from './ui/Segmented'
 
 const STEP_MS = 10 * 60 * 1000
@@ -125,9 +125,8 @@ export function DelhiTimeline(props: { peak: PeakWindow | null }) {
                 style={{ left: pct(ms) }}
               >
                 <span className="text-text-2 absolute top-0.5 left-1 text-[9px] leading-none whitespace-nowrap">
-                  {index % 4 === 0
-                    ? formatDate(ms, language)
-                    : `${String((index * TICK_HOURS) % 24).padStart(2, '0')}:00`}
+                  {/* A forecast starts at the hour it was made, so labels come from the time itself. */}
+                  {index === 0 || istParts(ms).hour < TICK_HOURS ? formatDate(ms, language) : formatTime(ms, language)}
                 </span>
               </div>
             ))}

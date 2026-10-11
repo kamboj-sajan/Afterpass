@@ -215,7 +215,9 @@
     "locality": "Locality",
     "play": "Play the 48 hours",
     "scrub": "Time in the 48 hours",
-    "peakBand": "Peak window for the chosen locality"
+    "peakBand": "Peak window for the chosen locality",
+    "forecast": "Forecast",
+    "forecastFrom": "48 hours from {{when}} IST"
   },
   "chat": {
     "title": "Ask AfterPass",

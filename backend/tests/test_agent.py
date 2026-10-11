@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from agent import data, gazetteer, grounding, handler, tools
+from agent import data, gazetteer, grounding, handler, ratelimit, tools
 
 HOUR = 3600
 RUN_START = 1762367400  # 2025-11-06 00:00 IST
@@ -409,3 +409,44 @@ def test_lambda_handler_reads_the_question_from_the_body(public, monkeypatch) ->
     assert ok["statusCode"] == 200 and json.loads(ok["body"])["answer"].startswith("300")
     bad = handler.lambda_handler({"body": "not json"}, None)
     assert bad["statusCode"] == 400 and json.loads(bad["body"])["error"] == "empty"
+
+
+class _Counter:
+    """Stands in for the DynamoDB table: counts per key, as the real update does."""
+
+    def __init__(self) -> None:
+        self.hits: dict[str, int] = {}
+        self.expires: dict[str, int] = {}
+
+    def update_item(self, Key, ExpressionAttributeValues, **_):  # noqa: N803 - boto3's names
+        key = Key["pk"]
+        self.hits[key] = self.hits.get(key, 0) + 1
+        self.expires.setdefault(key, ExpressionAttributeValues[":expires"])
+        return {"Attributes": {"hits": self.hits[key]}}
+
+
+def test_rate_limit_counts_per_address_and_hour_without_storing_the_address() -> None:
+    table = _Counter()
+    now = 1_760_000_000.0
+    allowed = [
+        ratelimit.allow("203.0.113.9", table, now) for _ in range(ratelimit.LIMIT_PER_HOUR + 2)
+    ]
+    assert allowed == [True] * ratelimit.LIMIT_PER_HOUR + [False, False]
+    assert ratelimit.allow("198.51.100.4", table, now)
+    assert ratelimit.allow("203.0.113.9", table, now + ratelimit.WINDOW_S)
+    assert all("203.0.113.9" not in key for key in table.hits)
+    assert all(expiry > now for expiry in table.expires.values())
+
+
+def test_lambda_handler_refuses_an_address_over_the_limit(public, monkeypatch) -> None:
+    monkeypatch.setattr(handler, "strands_runner", _scripted(*["300 ha burned in 2025."] * 3))
+    monkeypatch.setattr(handler, "_rate_table", lambda: object())
+    answers = iter([True, False])
+    monkeypatch.setattr(ratelimit, "allow", lambda address, table: next(answers))
+    event = {
+        "body": json.dumps({"question": "How much burned in 2025?"}),
+        "requestContext": {"http": {"sourceIp": "203.0.113.9"}},
+    }
+    assert handler.lambda_handler(event, None)["statusCode"] == 200
+    refused = handler.lambda_handler(event, None)
+    assert refused["statusCode"] == 429 and json.loads(refused["body"])["error"] == "rate_limited"

@@ -84,7 +84,10 @@ async function loadSeason(season: number): Promise<SeasonData> {
     cells,
     firms,
     villages,
-    imagery: new Set(imagery.items.map((item) => item.village_id)),
+    // Crops are prepared per season; a village's crops from another season are not this season's.
+    imagery: new Set(
+      imagery.items.filter((item) => item.post_date.startsWith(String(season))).map((item) => item.village_id),
+    ),
   }
 }
 

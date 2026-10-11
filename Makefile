@@ -3,7 +3,7 @@ SHELL := /bin/bash
 unexport VIRTUAL_ENV
 UV := cd backend && uv run
 
-.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy
+.PHONY: help setup lint test smoke-apis check-winds detect fetch replay imagery qa smoke pm25 agent agent-test live serve-data web walkthrough a11y globe-assets build deploy publish-s3 deploy-web
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -75,7 +75,13 @@ web: ## Run the frontend dev server
 build: ## Build the frontend
 	cd frontend && npm run build
 
-deploy: ## Deploy the AWS stack (asks first; costs money)
-	@echo "This creates AWS resources in ap-southeast-2 and can cost money."
+deploy: ## Deploy the AWS stack to ap-southeast-2 (asks first; costs money)
+	@echo "This creates or updates AWS resources in ap-southeast-2 and can cost money."
 	@read -p "Type 'deploy' to continue: " ans && [ "$$ans" = "deploy" ] || (echo "Aborted."; exit 1)
-	@echo "Not implemented yet (Phase 6)."
+	cd infra && sam validate --lint && sam build && sam deploy
+
+publish-s3: ## Upload data/public to the data bucket (served by CloudFront)
+	$(UV) afterpass publish --target s3
+
+deploy-web: ## Build the frontend against the stack and upload it to Amplify Hosting
+	$(UV) afterpass deploy-web

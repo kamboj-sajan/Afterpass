@@ -6,14 +6,16 @@ conversation: nothing is remembered between calls.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agent import grounding, tools
+from agent import grounding, ratelimit, tools
 from agent.model import build_model, model_name
 
 MAX_QUESTION_CHARS = 500
@@ -254,17 +256,53 @@ def _refusal(code: str, message: str) -> dict:
     return {"answer": message, "tools_used": [], "ui_actions": [], "error": code}
 
 
+def _respond(status: int, payload: dict) -> dict:
+    return {
+        "statusCode": status,
+        "headers": {"Content-Type": "application/json; charset=utf-8"},
+        "body": json.dumps(payload, ensure_ascii=False),
+    }
+
+
+_table = None
+
+
+def _rate_table():
+    """The rate-limit table named by RATE_LIMIT_TABLE, or None when running without one."""
+    global _table
+    name = os.environ.get("RATE_LIMIT_TABLE")
+    if name and _table is None:
+        import boto3
+
+        _table = boto3.resource("dynamodb").Table(name)
+    return _table
+
+
 def lambda_handler(event: dict, _context: object) -> dict:
     """Lambda Function URL entry point: POST {"question": "..."}."""
+    body = event.get("body") or "{}"
+    if event.get("isBase64Encoded"):
+        body = base64.b64decode(body).decode("utf-8", "replace")
     try:
-        question = json.loads(event.get("body") or "{}").get("question", "")
-    except json.JSONDecodeError:
+        question = json.loads(body).get("question", "")
+    except (json.JSONDecodeError, AttributeError):
         question = ""
     if not isinstance(question, str):
         question = ""
-    reply = ask(question)
-    return {
-        "statusCode": 400 if "error" in reply else 200,
-        "headers": {"Content-Type": "application/json; charset=utf-8"},
-        "body": json.dumps(reply, ensure_ascii=False),
-    }
+
+    table = _rate_table()
+    address = event.get("requestContext", {}).get("http", {}).get("sourceIp")
+    if table is not None and address and not ratelimit.allow(address, table):
+        log.info(json.dumps({"refused": "rate limit"}))
+        return _respond(
+            429,
+            _refusal("rate_limited", "Too many questions from this address. Try again in an hour."),
+        )
+    try:
+        reply = ask(question)
+    except Exception:  # noqa: BLE001 - the caller gets a clean failure, the log gets the cause
+        log.exception("ask failed")
+        return _respond(
+            502, _refusal("agent_failed", "The assistant could not answer. Please try again.")
+        )
+    return _respond(400 if "error" in reply else 200, reply)

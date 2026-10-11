@@ -128,7 +128,7 @@ export function Timeline() {
             <Playhead start={start} end={end} />
           </div>
           <Scrubber start={start} end={end} />
-          <div className="text-text-2 absolute inset-x-0 bottom-0 flex items-center gap-3 text-[10px] max-md:hidden">
+          <div className="text-text-2 absolute inset-x-0 bottom-0 flex items-center gap-3 overflow-hidden text-[10px] whitespace-nowrap max-md:hidden">
             <span className="inline-flex items-center gap-1">
               <Satellite size={11} style={{ color: css(OFFICIAL) }} aria-hidden />
               {t('timeline.overpass')}

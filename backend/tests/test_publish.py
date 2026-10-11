@@ -101,6 +101,8 @@ def test_public_files_follow_the_contract(replay, tmp_path, monkeypatch) -> None
     latest = json.loads((root / "latest.json").read_text())
     assert latest["season"] == 2025 and latest["districts"] == ["Sangrur"]
     assert latest["data_through"] == "2025-11-09" and latest["run_id"].startswith("2025-")
+    assert latest["seasons"]["2025"]["mode"] == "replay"
+    assert latest["seasons"]["2025"]["data_through"] == "2025-11-09"
 
     summary = json.loads((root / "seasons/2025/summary.json").read_text())
     assert summary["totals"] == {
@@ -189,3 +191,63 @@ def test_imagery_index_lists_villages_with_crops(tmp_path, monkeypatch) -> None:
     index = json.loads(publish.write_imagery_index(meta).read_text())
     assert index["demo"] is False
     assert index["items"] == [{k: v for k, v in record.items() if k != "bounds"}]
+
+
+def test_latest_lists_every_season_with_the_newest_on_top(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(publish, "PUBLIC_DIR", tmp_path)
+    meta = {"generated_at": "2026-10-11T12:00:00+00:00", "source_versions": {}, "demo": False}
+    replay = {
+        "season": 2025,
+        "mode": "replay",
+        "run_id": "2025-x",
+        "data_through": "2025-11-29",
+        "districts": ["Sangrur"],
+        "generated_at": meta["generated_at"],
+    }
+    live = replay | {
+        "season": 2026,
+        "mode": "live",
+        "run_id": "2026-y",
+        "data_through": "2026-10-09",
+    }
+    (tmp_path / "latest.json").write_text(json.dumps(publish.latest_with(replay, meta)))
+    both = publish.latest_with(live, meta)
+    assert list(both["seasons"]) == ["2025", "2026"]
+    assert both["season"] == 2026 and both["data_through"] == "2026-10-09"
+    # Publishing the older season again does not move the top of the file back.
+    (tmp_path / "latest.json").write_text(json.dumps(both))
+    again = publish.latest_with(replay | {"run_id": "2025-z"}, meta)
+    assert again["season"] == 2026 and again["seasons"]["2025"]["run_id"] == "2025-z"
+
+
+def test_latest_keeps_a_season_published_before_seasons_were_listed(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(publish, "PUBLIC_DIR", tmp_path)
+    old = {
+        "season": 2025,
+        "run_id": "2025-x",
+        "data_through": "2025-11-29",
+        "districts": ["Sangrur"],
+        "generated_at": "2026-10-11T11:55:32+00:00",
+        "source_versions": {},
+        "demo": False,
+    }
+    (tmp_path / "latest.json").write_text(json.dumps(old))
+    meta = {"generated_at": "2026-10-11T18:00:00+00:00", "source_versions": {}, "demo": False}
+    live = {
+        "season": 2026,
+        "mode": "live",
+        "run_id": "2026-y",
+        "data_through": "2026-10-09",
+        "districts": ["Sangrur"],
+        "generated_at": meta["generated_at"],
+    }
+    merged = publish.latest_with(live, meta)
+    assert merged["seasons"]["2025"] == {
+        "season": 2025,
+        "run_id": "2025-x",
+        "data_through": "2025-11-29",
+        "districts": ["Sangrur"],
+        "generated_at": "2026-10-11T11:55:32+00:00",
+        "mode": "replay",
+    }
+    assert merged["season"] == 2026

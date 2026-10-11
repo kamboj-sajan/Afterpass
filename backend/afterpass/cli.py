@@ -212,9 +212,36 @@ def replay(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> Non
 
 
 @app.command()
-def live() -> None:
-    """Process the current season up to today."""
-    _todo(6)
+def live(
+    districts: str = ",".join(DEMO_DISTRICTS),
+    forecast: bool = typer.Option(True, help="Also run the 48-hour smoke forecast."),
+) -> None:
+    """Process the current season up to today, publish it, and forecast 48 hours of smoke."""
+    from afterpass import outlook, pipeline, places
+    from afterpass import publish as publisher
+    from afterpass import smoke as model
+
+    season = max(SEASONS)
+    names = [name.strip() for name in districts.split(",")]
+    localities, release = places.load_localities()
+    replays = []
+    for name in names:
+        result = pipeline.replay_district(name, season, localities, log=typer.echo)
+        if result.info["missing_dates"]:
+            missing = ", ".join(result.info["missing_dates"])
+            typer.echo(f"{result.district.name}: MISSING Sentinel-2 dates {missing}", err=True)
+        replays.append(result)
+    _echo_summary(replays, publisher.publish_local(replays, season, release))
+    if not forecast:
+        return
+    outcome = outlook.live(season, names, model.SmokeParams(), log=typer.echo)
+    for run in outcome.runs:
+        peak = datetime.fromtimestamp(run["delhi_mean_peak_hour"], IST_TZ)
+        typer.echo(
+            f"Forecast {run['run_id']}: peak index {run['peak_sai']} ({run['peak_level']}), "
+            f"Delhi mean peak {run['delhi_mean_peak']:.1f} at {peak:%d %b %H:%M} IST, "
+            f"{run['trips']:,} trails"
+        )
 
 
 @app.command()
@@ -294,6 +321,15 @@ def pm25(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
     summary = {key: block[key] for key in ("stations", "station_days", "days", "pearson")}
     typer.echo(json.dumps(summary | {"spearman": block["spearman"]}, indent=2))
     typer.echo(f"Wrote {report_path}, {chart} and the public validation file")
+
+
+@app.command("deploy-web")
+def deploy_web() -> None:
+    """Build the frontend against the deployed stack and upload it to Amplify Hosting."""
+    from afterpass import hosting
+
+    url = hosting.deploy(hosting.build(log=typer.echo), log=typer.echo)
+    typer.echo(f"Live at {url}")
 
 
 @app.command("globe-assets")
@@ -432,12 +468,23 @@ def validate(
 def publish(
     target: str = "local", season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)
 ) -> None:
-    """Rewrite the data-contract files in data/public from the cached replay."""
+    """Rewrite the files in data/public from the cached replay, or upload them to S3."""
     from afterpass import pipeline, places
     from afterpass import publish as publisher
 
+    if target == "s3":
+        from afterpass import s3
+
+        bucket = s3.stack_output("DataBucketName")
+        result = s3.upload_public(bucket, log=typer.echo)
+        typer.echo(
+            f"s3://{bucket}/public: {result['uploaded']} uploaded "
+            f"({result['bytes'] / 1e6:.1f} MB), {result['unchanged']} unchanged, "
+            f"{result['removed']} removed"
+        )
+        return
     if target != "local":
-        typer.echo("Only --target local works so far; S3 publishing arrives with the deploy.")
+        typer.echo("Use --target local or --target s3.")
         raise typer.Exit(1)
     _, release = places.load_localities()
     replays = [pipeline.load_replay(name.strip(), season) for name in districts.split(",")]

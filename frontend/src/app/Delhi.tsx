@@ -13,6 +13,7 @@ import { useDelhi } from '@/lib/delhiStore'
 import { usePhone } from '@/lib/screen'
 import { defaultLocality, peakRun, peakWindow, PREFERRED_LOCALITY } from '@/lib/smoke'
 import { HOUR_MS } from '@/lib/time'
+import type { SmokeRunSummary } from '@/lib/types'
 
 /** Advances the Delhi clock while playing: one model hour per second at 1x, stopping at the end. */
 function useDelhiPlayback() {
@@ -96,10 +97,23 @@ export function Delhi() {
     () => (index === null ? [] : index.runs.filter((r) => r.kind === 'replay').sort((a, b) => a.start - b.start)),
     [index],
   )
+  // The newest forecast, when the live pipeline has made one. It is what the screen opens on.
+  const forecast = useMemo(
+    () =>
+      (index?.runs ?? [])
+        .filter((r) => r.kind === 'live')
+        .reduce<SmokeRunSummary | null>((best, r) => (best === null || r.start > best.start ? r : best), null),
+    [index],
+  )
   // The run asked for; the one on screen changes only once it has loaded.
   const wantedId = useDelhi((s) => s.wantedRunId)
-  const chosenId = wantedId ?? runs.find((r) => r.run_id === params.get('run'))?.run_id ?? peakRun(runs)?.run_id ?? null
-  const wanted = runs.find((r) => r.run_id === chosenId) ?? null
+  const chosenId =
+    wantedId ??
+    runs.find((r) => r.run_id === params.get('run'))?.run_id ??
+    forecast?.run_id ??
+    peakRun(runs)?.run_id ??
+    null
+  const wanted = (forecast?.run_id === chosenId ? forecast : runs.find((r) => r.run_id === chosenId)) ?? null
   const run = useSmokeRun(wanted)
   const shownId = useDelhi((s) => s.window?.runId ?? null)
   const localityId = useDelhi((s) => s.localityId)
@@ -160,7 +174,7 @@ export function Delhi() {
             {
               id: 'outlook',
               label: t('delhi.title'),
-              content: <DelhiPanel run={run} runs={runs} locality={locality} onOpen={open} />,
+              content: <DelhiPanel run={run} runs={runs} forecast={forecast} locality={locality} onOpen={open} />,
             },
           ]}
         />
@@ -180,7 +194,7 @@ export function Delhi() {
       {/* Panels float over the map; the wrapper ignores the pointer so the map stays draggable. */}
       <div className="pointer-events-none absolute inset-0 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-(--edge) p-(--edge)">
         <div className="pointer-events-auto row-span-2 flex min-h-0 flex-col [&>section]:max-h-full">
-          <DelhiPanel run={run} runs={runs} locality={locality} onOpen={open} />
+          <DelhiPanel run={run} runs={runs} forecast={forecast} locality={locality} onOpen={open} />
         </div>
         <div className="flex items-start justify-end">
           <Legend />

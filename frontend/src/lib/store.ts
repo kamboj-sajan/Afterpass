@@ -58,6 +58,8 @@ interface ExplorerState {
   camera: CameraCommand | null
   paletteOpen: boolean
 
+  /** Switches season. The week and districts are chosen again once its data has loaded. */
+  setSeason: (season: number) => void
   setWeek: (week: string) => void
   setDistricts: (districts: string[]) => void
   toggleLayer: (id: LayerId) => void
@@ -103,6 +105,18 @@ export const useExplorer = create<ExplorerState>((set, get) => ({
   camera: null,
   paletteOpen: false,
 
+  setSeason: (season) =>
+    set({
+      season,
+      week: null,
+      districts: [],
+      clockMs: 0,
+      playing: false,
+      scope: 'week',
+      highlightedDistrict: null,
+      highlightedVillage: null,
+      imageryVillage: null,
+    }),
   // A newly chosen week starts with its clock at the end, so the whole week is on the map.
   setWeek: (week) => set({ week, clockMs: weekRange(week).end - 1, playing: false }),
   setDistricts: (districts) => set({ districts }),
