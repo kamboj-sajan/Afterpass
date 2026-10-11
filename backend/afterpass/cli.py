@@ -265,6 +265,37 @@ def smoke(
     typer.echo(f"Done in {(time.perf_counter() - tic) / 60:.1f} min")
 
 
+@app.command()
+def pm25(season: int = 2025, districts: str = ",".join(DEMO_DISTRICTS)) -> None:
+    """Compare the season's daily Delhi smoke index with observed PM2.5 from OpenAQ."""
+    from afterpass import outlook, pipeline, places
+    from afterpass import pm25 as observed
+    from afterpass import publish as publisher
+
+    names = [name.strip() for name in districts.split(",")]
+    try:
+        sai = outlook.daily_delhi_sai(season)
+    except FileNotFoundError:
+        typer.echo(f"No smoke replay for {season}. Run `afterpass smoke` first.")
+        raise typer.Exit(1) from None
+    sai.index = [day.isoformat() for day in sai.index]
+    daily = observed.fetch_daily(season, log=typer.echo)
+    block = observed.report(season, sai, daily, names)
+    report_path = VALIDATION_DIR / f"{season}.json"
+    report = json.loads(report_path.read_text()) if report_path.exists() else {}
+    report["pm25"] = {"generated_at": datetime.now(UTC).isoformat(timespec="seconds"), **block}
+    report_path.write_text(json.dumps(report, indent=2) + "\n")
+    chart = REPORTS_DIR / "pm25_vs_sai.png"
+    observed.plot(block, season, chart)
+
+    replays = [pipeline.load_replay(name, season) for name in names]
+    _, release = places.load_localities()
+    publisher.publish_validation(season, publisher.metadata(replays, release))
+    summary = {key: block[key] for key in ("stations", "station_days", "days", "pearson")}
+    typer.echo(json.dumps(summary | {"spearman": block["spearman"]}, indent=2))
+    typer.echo(f"Wrote {report_path}, {chart} and the public validation file")
+
+
 def _load_season(season: int, districts: str):
     """Cached replays plus the scenes and STAC items behind them, for imagery and QA."""
     from afterpass import pipeline

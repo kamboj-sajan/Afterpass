@@ -79,5 +79,401 @@
     "Positives are weak labels. A VIIRS pixel is 375 m wide, so many pixels within 150 m of a detection did not burn; recall on them understates recall on real burns.",
     "Clear negatives are defined by NBR and B8A, the same indices the rule tests, so the false-positive rate on them is optimistic. The visual QA sheet gives the real precision.",
     "Thresholds come from one district and one season."
-  ]
+  ],
+  "pm25": {
+    "generated_at": "2026-10-11T14:10:20+00:00",
+    "source": "OpenAQ v3: CPCB and DPCC reference monitors inside Delhi",
+    "smoke_sources": [
+      "Sangrur",
+      "Bathinda",
+      "Firozpur"
+    ],
+    "stations": 40,
+    "station_days": 2255,
+    "min_day_coverage_pct": 75.0,
+    "min_stations_per_day": 5,
+    "days": 59,
+    "pearson": {
+      "r": 0.558,
+      "p": 4.39e-06
+    },
+    "spearman": {
+      "rho": 0.626,
+      "p": 1.15e-07
+    },
+    "series": [
+      {
+        "date": "2025-10-01",
+        "sai": 0.0,
+        "pm25": 45.3,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-02",
+        "sai": 0.0,
+        "pm25": 46.1,
+        "stations": 36
+      },
+      {
+        "date": "2025-10-03",
+        "sai": 0.0,
+        "pm25": 35.9,
+        "stations": 37
+      },
+      {
+        "date": "2025-10-04",
+        "sai": 0.0,
+        "pm25": 67.4,
+        "stations": 38
+      },
+      {
+        "date": "2025-10-05",
+        "sai": 0.0,
+        "pm25": 65.1,
+        "stations": 36
+      },
+      {
+        "date": "2025-10-06",
+        "sai": 0.0,
+        "pm25": 31.4,
+        "stations": 35
+      },
+      {
+        "date": "2025-10-07",
+        "sai": 0.0,
+        "pm25": 23.3,
+        "stations": 38
+      },
+      {
+        "date": "2025-10-08",
+        "sai": 0.0,
+        "pm25": 36.6,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-09",
+        "sai": 0.26,
+        "pm25": 40.9,
+        "stations": 40
+      },
+      {
+        "date": "2025-10-10",
+        "sai": 0.08,
+        "pm25": 64.2,
+        "stations": 37
+      },
+      {
+        "date": "2025-10-11",
+        "sai": 0.33,
+        "pm25": 72.7,
+        "stations": 40
+      },
+      {
+        "date": "2025-10-12",
+        "sai": 0.44,
+        "pm25": 63.9,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-13",
+        "sai": 0.16,
+        "pm25": 75.5,
+        "stations": 40
+      },
+      {
+        "date": "2025-10-14",
+        "sai": 1.67,
+        "pm25": 78.6,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-15",
+        "sai": 0.49,
+        "pm25": 99.4,
+        "stations": 38
+      },
+      {
+        "date": "2025-10-16",
+        "sai": 0.23,
+        "pm25": 106.8,
+        "stations": 38
+      },
+      {
+        "date": "2025-10-17",
+        "sai": 0.14,
+        "pm25": 113.1,
+        "stations": 36
+      },
+      {
+        "date": "2025-10-18",
+        "sai": 2.31,
+        "pm25": 121.9,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-19",
+        "sai": 0.72,
+        "pm25": 157.3,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-20",
+        "sai": 0.18,
+        "pm25": 229.1,
+        "stations": 38
+      },
+      {
+        "date": "2025-10-21",
+        "sai": 0.02,
+        "pm25": 261.3,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-22",
+        "sai": 1.71,
+        "pm25": 199.1,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-23",
+        "sai": 4.12,
+        "pm25": 135.8,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-24",
+        "sai": 2.67,
+        "pm25": 122.4,
+        "stations": 40
+      },
+      {
+        "date": "2025-10-25",
+        "sai": 1.76,
+        "pm25": 154.7,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-26",
+        "sai": 0.3,
+        "pm25": null,
+        "stations": 0
+      },
+      {
+        "date": "2025-10-27",
+        "sai": 0.0,
+        "pm25": 149.0,
+        "stations": 35
+      },
+      {
+        "date": "2025-10-28",
+        "sai": 0.0,
+        "pm25": 131.9,
+        "stations": 37
+      },
+      {
+        "date": "2025-10-29",
+        "sai": 0.23,
+        "pm25": 156.8,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-30",
+        "sai": 4.34,
+        "pm25": 194.7,
+        "stations": 39
+      },
+      {
+        "date": "2025-10-31",
+        "sai": 0.0,
+        "pm25": 95.7,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-01",
+        "sai": 6.48,
+        "pm25": 206.9,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-02",
+        "sai": 8.01,
+        "pm25": 183.8,
+        "stations": 38
+      },
+      {
+        "date": "2025-11-03",
+        "sai": 0.62,
+        "pm25": 158.4,
+        "stations": 35
+      },
+      {
+        "date": "2025-11-04",
+        "sai": 0.19,
+        "pm25": null,
+        "stations": 0
+      },
+      {
+        "date": "2025-11-05",
+        "sai": 5.48,
+        "pm25": 104.6,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-06",
+        "sai": 16.19,
+        "pm25": 191.7,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-07",
+        "sai": 20.7,
+        "pm25": 211.9,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-08",
+        "sai": 7.41,
+        "pm25": 250.7,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-09",
+        "sai": 23.16,
+        "pm25": 214.0,
+        "stations": 38
+      },
+      {
+        "date": "2025-11-10",
+        "sai": 28.74,
+        "pm25": 281.6,
+        "stations": 17
+      },
+      {
+        "date": "2025-11-11",
+        "sai": 23.51,
+        "pm25": 293.5,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-12",
+        "sai": 28.82,
+        "pm25": 309.8,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-13",
+        "sai": 16.87,
+        "pm25": 278.1,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-14",
+        "sai": 18.43,
+        "pm25": 225.3,
+        "stations": 37
+      },
+      {
+        "date": "2025-11-15",
+        "sai": 20.77,
+        "pm25": 236.6,
+        "stations": 38
+      },
+      {
+        "date": "2025-11-16",
+        "sai": 24.2,
+        "pm25": 233.8,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-17",
+        "sai": 31.32,
+        "pm25": 205.7,
+        "stations": 37
+      },
+      {
+        "date": "2025-11-18",
+        "sai": 6.06,
+        "pm25": 249.4,
+        "stations": 35
+      },
+      {
+        "date": "2025-11-19",
+        "sai": 1.23,
+        "pm25": 262.8,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-20",
+        "sai": 0.68,
+        "pm25": 232.8,
+        "stations": 38
+      },
+      {
+        "date": "2025-11-21",
+        "sai": 0.11,
+        "pm25": 211.5,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-22",
+        "sai": 0.08,
+        "pm25": 225.4,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-23",
+        "sai": 3.48,
+        "pm25": 263.2,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-24",
+        "sai": 0.3,
+        "pm25": 213.9,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-25",
+        "sai": 0.51,
+        "pm25": 191.2,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-26",
+        "sai": 1.04,
+        "pm25": 181.3,
+        "stations": 39
+      },
+      {
+        "date": "2025-11-27",
+        "sai": 0.01,
+        "pm25": 243.5,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-28",
+        "sai": 0.01,
+        "pm25": 211.6,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-29",
+        "sai": 0.1,
+        "pm25": 140.6,
+        "stations": 40
+      },
+      {
+        "date": "2025-11-30",
+        "sai": 0.0,
+        "pm25": 141.9,
+        "stations": 38
+      }
+    ],
+    "caveats": [
+      "PM2.5 in Delhi comes from many sources (traffic, industry, dust, local burning, weather). Stubble smoke is one of them.",
+      "The index models smoke from the replayed districts only, not all of Punjab and Haryana.",
+      "Both series depend on the mixing height: a shallow layer raises the index by construction and also traps PM2.5 from every source, so part of the agreement is shared weather.",
+      "The index is relative and has no units; a correlation says how the two move together, not how much PM2.5 the smoke adds."
+    ]
+  }
 }

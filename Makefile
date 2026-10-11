@@ -48,6 +48,9 @@ qa: ## Build the visual QA sheet (reports/qa_sheet.html)
 smoke: ## Run the 2025 smoke replay: one 48-hour run per day, Delhi SAI and trails
 	$(UV) afterpass smoke --season 2025
 
+pm25: ## Compare the daily Delhi smoke index with observed PM2.5 (needs OPENAQ_API_KEY)
+	$(UV) afterpass pm25 --season 2025
+
 live: ## Process the 2026 season up to today
 	$(UV) afterpass live
 

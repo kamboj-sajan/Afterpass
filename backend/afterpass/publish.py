@@ -207,13 +207,17 @@ def publish_local(replays: list[Replay], season: int, overture_release: str) -> 
 
     written.append(write_imagery_index(meta))
 
-    calibration = VALIDATION_DIR / f"{season}.json"
-    if calibration.exists():
-        report = json.loads(calibration.read_text())
-        written.append(
-            _write(PUBLIC_DIR / "validation" / f"{season}.json", report | meta, pretty=True)
-        )
+    written.extend(publish_validation(season, meta))
     return written
+
+
+def publish_validation(season: int, meta: dict) -> list[Path]:
+    """Copy `validation/{season}.json` (calibration, QA, PM2.5) to the public folder."""
+    report = VALIDATION_DIR / f"{season}.json"
+    if not report.exists():
+        return []
+    payload = json.loads(report.read_text()) | meta
+    return [_write(PUBLIC_DIR / "validation" / f"{season}.json", payload, pretty=True)]
 
 
 # --- Smoke (brief §8.5, §9.2) --------------------------------------------------------------
