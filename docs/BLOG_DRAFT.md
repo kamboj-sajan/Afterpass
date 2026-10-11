@@ -39,8 +39,9 @@ For Sangrur, Bathinda and Firozpur, 1 October to 30 November 2025:
   detection.**
 - Of 4,377 official detections, **4,330 (98.9%) were made between noon and 4 PM**, around the
   afternoon pass. Our own data shows the blind spot.
-- The village at the top of the "send help here first" list, Chaunda in Sangrur, had 850.6
-  hectares of burning not in official counts.
+- The village at the top of the "send help here first" list, Kotha Guru in Bathinda, had
+  1,163.8 hectares of burning not in official counts. In Sangrur the top village is Chaunda,
+  with 850.6.
 - Over 59 days, the daily Delhi-wide smoke index and PM2.5 from 40 CPCB and DPCC monitors had a
   Pearson correlation of 0.56 (Spearman 0.63).
 
